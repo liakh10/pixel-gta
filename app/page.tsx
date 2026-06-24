@@ -197,15 +197,15 @@ function CADisplay() {
   const isReal = CA !== "SOON" && CA !== "";
   function copy() { if (!isReal) return; navigator.clipboard.writeText(CA); setCopied(true); setTimeout(() => setCopied(false), 1500); }
   return (
-    <div className="flex items-center justify-center gap-3 px-4 py-2"
-      style={{ fontFamily: "var(--font-mono)", background: "rgba(8,3,16,0.55)", border: "2px solid #ff3e9a55", boxShadow: "0 0 18px #ff3e9a33" }}>
-      <span className="text-base md:text-lg shrink-0" style={{ color: "#19e0ff" }}>CA:</span>
-      <span className="text-base md:text-lg" style={{ color: copied ? "#FFD700" : isReal ? "#7CFC6B" : "#ffd0e8", letterSpacing: "0.05em", wordBreak: "break-all" }}>
+    <div className="flex items-center justify-center gap-2 px-4 py-2 w-full overflow-x-auto"
+      style={{ fontFamily: "var(--font-mono)", background: "rgba(8,3,16,0.55)", border: "2px solid #ff3e9a55", boxShadow: "0 0 18px #ff3e9a33", whiteSpace: "nowrap" }}>
+      <span className="text-sm shrink-0" style={{ color: "#19e0ff" }}>CA:</span>
+      <span className="text-xs md:text-sm whitespace-nowrap" style={{ color: copied ? "#FFD700" : isReal ? "#7CFC6B" : "#ffd0e8", letterSpacing: "0.03em" }}>
         {copied ? "COPIED!" : CA}
       </span>
       {isReal && (
         <button onClick={copy} aria-label="Copy CA" className="flex items-center justify-center transition-all hover:scale-110 cursor-pointer shrink-0"
-          style={{ width: 28, height: 28, color: copied ? "#FFD700" : "#19e0ff", background: "rgba(25,224,255,0.1)", border: "2px solid #19e0ff", boxShadow: "0 0 10px #19e0ff55" }}>
+          style={{ width: 26, height: 26, color: copied ? "#FFD700" : "#19e0ff", background: "rgba(25,224,255,0.1)", border: "2px solid #19e0ff", boxShadow: "0 0 10px #19e0ff55" }}>
           {copied ? <CheckIcon /> : <CopyIcon />}
         </button>
       )}
