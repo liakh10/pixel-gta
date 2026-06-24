@@ -3,138 +3,111 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { GAME_CONFIG, X_URL, CA, TICKER } from "./config";
 
 export default function Home() {
   const { connected, publicKey } = useWallet();
   const { setVisible } = useWalletModal();
   const router = useRouter();
-  const bgRef = useRef<HTMLCanvasElement>(null);
   const [blink, setBlink] = useState(true);
-  const [hover, setHover] = useState(false);
 
   useEffect(() => {
-    const t = setInterval(() => setBlink((b) => !b), 600);
+    const t = setInterval(() => setBlink((b) => !b), 650);
     return () => clearInterval(t);
   }, []);
 
-  // Animated top-down neon-city attract background
+  function enter(mode: "guest" | "wallet", address?: string) {
+    sessionStorage.setItem("pixelgta_player", JSON.stringify({ mode, address: address ?? null }));
+    router.push("/play");
+  }
+
+  // wallet → play bridge
   useEffect(() => {
-    const canvas = bgRef.current; if (!canvas) return;
-    const ctx = canvas.getContext("2d")!;
-    let raf = 0;
-    const GRID = 90;
-    interface Car { x: number; y: number; vx: number; vy: number; c: string; }
-    const cars: Car[] = [];
-    const colors = ["#ff4d6d", "#4dd2ff", "#ffd24d", "#7CFC6B", "#b66dff", "#ff924d"];
-
-    function resize() { canvas!.width = window.innerWidth; canvas!.height = window.innerHeight; }
-    resize();
-    window.addEventListener("resize", resize);
-
-    function laneCoord(v: number) { return Math.round(v / GRID) * GRID + GRID / 2; }
-    for (let i = 0; i < 40; i++) {
-      const horiz = Math.random() < 0.5;
-      const sp = (40 + Math.random() * 60) * (Math.random() < 0.5 ? 1 : -1);
-      cars.push(horiz
-        ? { x: Math.random() * window.innerWidth, y: laneCoord(Math.random() * window.innerHeight), vx: sp, vy: 0, c: colors[i % colors.length] }
-        : { x: laneCoord(Math.random() * window.innerWidth), y: Math.random() * window.innerHeight, vx: 0, vy: sp, c: colors[i % colors.length] });
+    if (connected && publicKey && sessionStorage.getItem("pixelgta_wallet_pending")) {
+      sessionStorage.removeItem("pixelgta_wallet_pending");
+      enter("wallet", publicKey.toBase58());
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connected, publicKey]);
 
-    let last = performance.now();
-    function draw() {
-      const now = performance.now(); const dt = Math.min((now - last) / 1000, 0.05); last = now;
-      const W = canvas!.width, H = canvas!.height;
-      ctx.fillStyle = "#05060d"; ctx.fillRect(0, 0, W, H);
-
-      // streets grid
-      ctx.lineWidth = GRID * 0.42;
-      ctx.strokeStyle = "#0c0f1a";
-      for (let x = GRID / 2; x < W; x += GRID) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-      for (let y = GRID / 2; y < H; y += GRID) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-      // lane dashes
-      ctx.strokeStyle = "rgba(240,210,80,0.12)"; ctx.lineWidth = 1; ctx.setLineDash([8, 12]);
-      for (let x = GRID / 2; x < W; x += GRID) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-      for (let y = GRID / 2; y < H; y += GRID) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-      ctx.setLineDash([]);
-
-      // cars
-      for (const c of cars) {
-        c.x += c.vx * dt; c.y += c.vy * dt;
-        if (c.x < -20) c.x = W + 20; if (c.x > W + 20) c.x = -20;
-        if (c.y < -20) c.y = H + 20; if (c.y > H + 20) c.y = -20;
-        ctx.shadowColor = c.c; ctx.shadowBlur = 12;
-        ctx.fillStyle = c.c;
-        const w = c.vx !== 0 ? 12 : 6, h = c.vx !== 0 ? 6 : 12;
-        ctx.fillRect(c.x - w / 2, c.y - h / 2, w, h);
-        ctx.shadowBlur = 0;
-      }
-      raf = requestAnimationFrame(draw);
-    }
-    raf = requestAnimationFrame(draw);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
-  }, []);
+  function walletClick() {
+    if (connected && publicKey) enter("wallet", publicKey.toBase58());
+    else { sessionStorage.setItem("pixelgta_wallet_pending", "1"); setVisible(true); }
+  }
 
   return (
-    <main className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center">
-      <canvas ref={bgRef} className="absolute inset-0 z-0" />
+    <main className="fixed inset-0 overflow-hidden" style={{ fontFamily: "'Press Start 2P', monospace" }}>
+      {/* Full-bleed hero artwork */}
+      <div className="absolute inset-0 z-0"
+        style={{ backgroundImage: "url(/hero.png)", backgroundSize: "cover", backgroundPosition: "center" }} />
+      {/* Sunset gradient wash + readability gradient (left + bottom) */}
+      <div className="absolute inset-0 z-[1]"
+        style={{ background: "linear-gradient(90deg, rgba(10,4,20,0.92) 0%, rgba(20,6,34,0.55) 38%, rgba(20,6,34,0) 62%)" }} />
+      <div className="absolute inset-0 z-[1]"
+        style={{ background: "linear-gradient(0deg, rgba(8,3,16,0.95) 0%, rgba(8,3,16,0.2) 30%, transparent 55%)" }} />
+      {/* magenta/cyan neon haze */}
       <div className="absolute inset-0 z-[1] pointer-events-none"
-        style={{ background: "radial-gradient(ellipse at 50% 42%, rgba(8,10,24,0.1) 20%, rgba(4,5,13,0.86) 100%)" }} />
+        style={{ background: "radial-gradient(120% 80% at 15% 85%, rgba(255,40,140,0.18) 0%, transparent 55%)" }} />
+      {/* scanlines */}
       <div className="absolute inset-0 z-[2] pointer-events-none"
-        style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.10) 3px, rgba(0,0,0,0.10) 4px)" }} />
+        style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.16) 2px, rgba(0,0,0,0.16) 3px)" }} />
 
-      <div className="relative z-10 flex flex-col items-center gap-6 px-4 w-full max-w-md">
-        {/* logo */}
-        <div className="text-center select-none">
-          <div className="text-3xl md:text-4xl font-bold leading-none animate-float"
-            style={{ color: "#4dd2ff", ["--gc" as string]: "#4dd2ff", textShadow: "0 0 18px #4dd2ff, 0 0 44px #4dd2ff66, 3px 3px 0 #06223a" }}>
+      {/* Top bar: ticker (left) + X (right) */}
+      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-5 py-4">
+        <div className="px-3 py-1.5 text-[10px]" style={{ color: "#19e0ff", border: "2px solid #19e0ff", background: "rgba(8,3,16,0.5)", boxShadow: "0 0 14px #19e0ff55", textShadow: "0 0 8px #19e0ff" }}>
+          {TICKER}
+        </div>
+        <a href={X_URL} target="_blank" rel="noopener noreferrer"
+          className="flex items-center gap-2 px-3 py-1.5 transition-all hover:opacity-80"
+          style={{ fontSize: 9, color: "#ff3e9a", textDecoration: "none", textShadow: "0 0 8px #ff3e9a" }}>
+          <XIcon /><span>FOLLOW</span>
+        </a>
+      </div>
+
+      {/* Bottom-left content block */}
+      <div className="absolute z-20 left-0 bottom-0 p-6 md:p-12 w-full md:max-w-2xl">
+        {/* neon accent line */}
+        <div className="mb-4 h-[3px] w-24" style={{ background: "linear-gradient(90deg,#ff3e9a,#19e0ff)", boxShadow: "0 0 12px #ff3e9a" }} />
+
+        <div className="leading-none select-none">
+          <div className="text-xl md:text-2xl mb-2" style={{ color: "#19e0ff", textShadow: "0 0 14px #19e0ff, 2px 2px 0 #06223a" }}>
             PIXEL
           </div>
-          <div className="text-2xl md:text-3xl font-bold leading-none mt-2 neon"
-            style={{ color: "#ff4d6d", ["--gc" as string]: "#ff4d6d" }}>
-            GRAND THEFT
+          <div className="text-6xl md:text-8xl font-bold"
+            style={{
+              backgroundImage: "linear-gradient(180deg,#fff3b0 0%,#ff8a3d 40%,#ff2e88 75%,#a32bd6 100%)",
+              WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent",
+              filter: "drop-shadow(0 0 24px rgba(255,46,136,0.55)) drop-shadow(4px 6px 0 rgba(60,10,40,0.8))",
+            }}>
+            GTA
           </div>
-          <div className="text-4xl md:text-5xl font-bold leading-none mt-1"
-            style={{ color: "#FFD23D", textShadow: "0 0 22px #FFD23D, 0 0 60px #ffae3355, 4px 4px 0 #5a3000" }}>
-            AUTO
+          <div className="mt-3 text-[10px] tracking-[0.3em]" style={{ color: "#ffb3d9", textShadow: "0 0 10px #ff3e9a88" }}>
+            VICE PIXEL CITY · SOLANA
           </div>
         </div>
 
-        <button
-          onClick={() => router.push("/play")}
-          onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-          className="px-14 py-4 text-base font-bold text-black cursor-pointer active:scale-95 transition-all mt-1"
-          style={{
-            fontFamily: "'Press Start 2P', monospace",
-            background: hover ? "linear-gradient(180deg,#FFE07A,#FFB300)" : "linear-gradient(180deg,#FFD24D,#FFA800)",
-            border: "3px solid #7a4d00",
-            boxShadow: hover ? "0 0 40px #FFB30099, 5px 5px 0 #5a3000" : "0 0 24px #FFB30055, 5px 5px 0 #5a3000",
-            transform: hover ? "translateY(-2px)" : "none",
-          }}>
-          ENTER
-        </button>
-
-        <div className="text-[9px] tracking-[0.3em] text-[#ff4d6d]/80" style={{ opacity: blink ? 1 : 0.4, transition: "opacity 0.2s" }}>
-          STEAL • DRIVE • EARN
+        {/* CTAs: guest + wallet */}
+        <div className="mt-7 flex flex-col sm:flex-row gap-3">
+          <button onClick={() => enter("guest")}
+            className="px-8 py-4 text-sm font-bold text-white cursor-pointer active:scale-95 transition-all"
+            style={{ background: "linear-gradient(180deg,#ff5fb0,#ff1e7a)", border: "3px solid #ffd0e8", boxShadow: "0 0 28px #ff2e8899, 5px 5px 0 #5a0a2e" }}>
+            ▶ PLAY AS GUEST
+          </button>
+          <button onClick={walletClick}
+            className="px-8 py-4 text-sm font-bold cursor-pointer active:scale-95 transition-all"
+            style={{ color: connected ? "#06121f" : "#19e0ff", background: connected ? "linear-gradient(180deg,#5ff0ff,#19c8e0)" : "rgba(8,3,16,0.4)", border: "3px solid #19e0ff", boxShadow: "0 0 24px #19e0ff66, 5px 5px 0 #063040" }}>
+            {connected ? `✓ ${publicKey?.toBase58().slice(0, 4)}…${publicKey?.toBase58().slice(-4)}` : "◈ LOGIN WALLET"}
+          </button>
         </div>
 
-        <button
-          onClick={() => { if (connected && publicKey) router.push("/play"); else setVisible(true); }}
-          className="text-[9px] px-5 py-2 cursor-pointer transition-all hover:opacity-80"
-          style={{ color: connected ? "#fff" : "#9945FF", background: connected ? "linear-gradient(90deg,#7b2fff,#9945FF)" : "transparent", border: "2px solid #9945FF" }}>
-          {connected ? `✓ ${publicKey?.toBase58().slice(0, 4)}…${publicKey?.toBase58().slice(-4)}` : "◈ CONNECT WALLET"}
-        </button>
-
-        <div className="flex flex-col items-center gap-3 mt-1">
-          <div className="text-lg" style={{ color: "#FFD23D", textShadow: "0 0 14px #FFB30066" }}>{TICKER}</div>
+        {/* press start blink + CA */}
+        <div className="mt-6 flex flex-col gap-2">
+          <div className="text-[9px]" style={{ color: "#ffd23d", opacity: blink ? 1 : 0.35, transition: "opacity 0.2s", textShadow: "0 0 8px #ffae33" }}>
+            ▶ INSERT COIN · STEAL · DRIVE · EARN {TICKER}
+          </div>
           <CADisplay />
-          <a href={X_URL} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-2 transition-all hover:opacity-80 cursor-pointer"
-            style={{ fontSize: 9, color: "#9aa3b2", textDecoration: "none" }}>
-            <XIcon /><span>FOLLOW ON X</span>
-          </a>
-          <div className="text-[8px] text-gray-700 text-center">{GAME_CONFIG.subtitle} • {GAME_CONFIG.network}</div>
+          <div className="text-[8px] text-white/30">{GAME_CONFIG.subtitle} · {GAME_CONFIG.network}</div>
         </div>
       </div>
     </main>
@@ -144,16 +117,13 @@ export default function Home() {
 function CADisplay() {
   const [copied, setCopied] = useState(false);
   const isReal = CA !== "SOON" && CA !== "";
-  function copy() {
-    if (!isReal) return;
-    navigator.clipboard.writeText(CA); setCopied(true); setTimeout(() => setCopied(false), 1500);
-  }
+  function copy() { if (!isReal) return; navigator.clipboard.writeText(CA); setCopied(true); setTimeout(() => setCopied(false), 1500); }
   return (
-    <div className="text-center">
-      <span className="text-[7px] text-gray-700">CA: </span>
+    <div>
+      <span className="text-[7px] text-white/40">CA: </span>
       <span onClick={copy}
         className={isReal ? "text-[7px] cursor-pointer transition-opacity hover:opacity-70" : "text-[7px]"}
-        style={{ color: copied ? "#FFD700" : isReal ? "#44AA44" : "#666622" }}
+        style={{ color: copied ? "#FFD700" : isReal ? "#7CFC6B" : "#b8859a" }}
         title={isReal ? "Click to copy" : undefined}>
         {copied ? "COPIED!" : CA}
       </span>
