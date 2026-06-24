@@ -29,6 +29,37 @@ body {
 .animate-float { animation: float 3s ease-in-out infinite; }
 .neon { animation: flicker 4s infinite; }
 
+/* ── Big animated neon buttons ── */
+@keyframes neonPulse {
+  0%, 100% { box-shadow: 0 0 16px var(--g), 5px 5px 0 var(--s); }
+  50% { box-shadow: 0 0 38px var(--g), 5px 5px 0 var(--s); }
+}
+@keyframes shine { 0% { background-position: 220% 0; } 100% { background-position: -220% 0; } }
+@keyframes titleGlow {
+  0%, 100% { filter: drop-shadow(0 0 22px rgba(255,46,136,0.5)) drop-shadow(3px 5px 0 rgba(60,10,40,0.8)); }
+  50% { filter: drop-shadow(0 0 40px rgba(255,46,136,0.85)) drop-shadow(3px 5px 0 rgba(60,10,40,0.8)); }
+}
+@keyframes bobUp { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+
+.btn-neon {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  animation: neonPulse 2.2s ease-in-out infinite;
+}
+.btn-neon:hover { transform: translateY(-3px) scale(1.05); filter: brightness(1.1); }
+.btn-neon:active { transform: scale(0.97); }
+.btn-neon::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(110deg, transparent 35%, rgba(255,255,255,0.45) 50%, transparent 65%);
+  background-size: 250% 100%;
+  animation: shine 2.8s linear infinite;
+  pointer-events: none;
+}
+.title-glow { animation: titleGlow 3s ease-in-out infinite; }
+.bob { animation: bobUp 3.2s ease-in-out infinite; }
+
 .wallet-adapter-modal-wrapper { font-family: 'Press Start 2P', monospace !important; }
 
 /* simple HUD scrollbar hide */

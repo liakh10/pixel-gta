@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { GameHandle, HudState } from "./engine/game";
+import { display, mono } from "../fonts";
 
 const EMPTY: HudState = {
   cash: 0, hp: 100, maxHp: 100, armor: 0, maxArmor: 0, wanted: 0,
@@ -149,17 +150,17 @@ export default function PlayPage() {
 
       {/* ── Loading screen ── */}
       {phase === "loading" && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center" style={{ fontFamily: "'Press Start 2P', monospace" }}>
+        <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center ${display.variable} ${mono.variable}`} style={{ fontFamily: "var(--font-display)" }}>
           <div className="absolute inset-0" style={{ backgroundImage: "url(/hero.png)", backgroundSize: "cover", backgroundPosition: "center", filter: "brightness(0.4) saturate(1.2)" }} />
           <div className="absolute inset-0" style={{ background: "linear-gradient(0deg, rgba(8,3,16,0.95), rgba(20,6,34,0.7))" }} />
           <div className="absolute inset-0 pointer-events-none" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 3px)" }} />
 
           <div className="relative z-10 flex flex-col items-center w-full max-w-lg px-8">
-            <div className="text-3xl md:text-4xl font-bold mb-2"
+            <div className="text-5xl md:text-6xl font-black mb-3"
               style={{ backgroundImage: "linear-gradient(180deg,#fff3b0,#ff8a3d,#ff2e88,#a32bd6)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", filter: "drop-shadow(0 0 20px rgba(255,46,136,0.5))" }}>
               PIXEL GTA
             </div>
-            <div className="text-[10px] mb-10" style={{ color: "#19e0ff", textShadow: "0 0 10px #19e0ff" }}>ENTERING VICE PIXEL CITY…</div>
+            <div className="text-sm md:text-base mb-10 tracking-[0.25em]" style={{ fontFamily: "var(--font-mono)", color: "#19e0ff", textShadow: "0 0 10px #19e0ff" }}>ENTERING VICE PIXEL CITY…</div>
 
             {/* progress bar */}
             <div className="w-full h-5 relative" style={{ background: "#10081a", border: "3px solid #ff2e88", boxShadow: "0 0 18px #ff2e8855" }}>

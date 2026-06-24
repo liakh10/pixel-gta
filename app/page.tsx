@@ -5,6 +5,7 @@ import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { GAME_CONFIG, X_URL, CA, TICKER } from "./config";
+import { display, mono } from "./fonts";
 
 export default function Home() {
   const { connected, publicKey } = useWallet();
@@ -22,7 +23,6 @@ export default function Home() {
     router.push("/play");
   }
 
-  // wallet → play bridge
   useEffect(() => {
     if (connected && publicKey && sessionStorage.getItem("pixelgta_wallet_pending")) {
       sessionStorage.removeItem("pixelgta_wallet_pending");
@@ -37,78 +37,70 @@ export default function Home() {
   }
 
   return (
-    <main className="fixed inset-0 overflow-hidden" style={{ fontFamily: "'Press Start 2P', monospace" }}>
-      {/* Full-bleed hero artwork */}
-      <div className="absolute inset-0 z-0"
-        style={{ backgroundImage: "url(/hero.png)", backgroundSize: "cover", backgroundPosition: "center" }} />
-      {/* Sunset gradient wash + readability gradient (left + bottom) */}
-      <div className="absolute inset-0 z-[1]"
-        style={{ background: "linear-gradient(90deg, rgba(10,4,20,0.92) 0%, rgba(20,6,34,0.55) 38%, rgba(20,6,34,0) 62%)" }} />
-      <div className="absolute inset-0 z-[1]"
-        style={{ background: "linear-gradient(0deg, rgba(8,3,16,0.95) 0%, rgba(8,3,16,0.2) 30%, transparent 55%)" }} />
-      {/* magenta/cyan neon haze */}
-      <div className="absolute inset-0 z-[1] pointer-events-none"
-        style={{ background: "radial-gradient(120% 80% at 15% 85%, rgba(255,40,140,0.18) 0%, transparent 55%)" }} />
-      {/* scanlines */}
-      <div className="absolute inset-0 z-[2] pointer-events-none"
-        style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.16) 2px, rgba(0,0,0,0.16) 3px)" }} />
+    <main className={`fixed inset-0 overflow-hidden ${display.variable} ${mono.variable}`} style={{ fontFamily: "var(--font-display)" }}>
+      {/* Hero artwork */}
+      <div className="absolute inset-0 z-0" style={{ backgroundImage: "url(/hero.png)", backgroundSize: "cover", backgroundPosition: "center" }} />
+      {/* Center darken so the centred UI pops */}
+      <div className="absolute inset-0 z-[1]" style={{ background: "radial-gradient(60% 75% at 50% 52%, rgba(8,3,16,0.86) 0%, rgba(10,4,20,0.55) 45%, rgba(10,4,20,0.15) 75%, transparent 100%)" }} />
+      <div className="absolute inset-0 z-[1]" style={{ background: "linear-gradient(0deg, rgba(8,3,16,0.9) 0%, transparent 35%)" }} />
+      <div className="absolute inset-0 z-[2] pointer-events-none" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.14) 2px, rgba(0,0,0,0.14) 3px)" }} />
 
-      {/* Top bar: ticker (left) + X (right) */}
-      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-5 py-4">
-        <div className="px-3 py-1.5 text-[10px]" style={{ color: "#19e0ff", border: "2px solid #19e0ff", background: "rgba(8,3,16,0.5)", boxShadow: "0 0 14px #19e0ff55", textShadow: "0 0 8px #19e0ff" }}>
+      {/* Top bar: ticker + X (always) */}
+      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 py-5">
+        <div className="px-3 py-1.5 text-[13px] tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "#19e0ff", border: "2px solid #19e0ff", background: "rgba(8,3,16,0.5)", boxShadow: "0 0 14px #19e0ff55", textShadow: "0 0 8px #19e0ff" }}>
           {TICKER}
         </div>
-        <a href={X_URL} target="_blank" rel="noopener noreferrer"
-          className="flex items-center gap-2 px-3 py-1.5 transition-all hover:opacity-80"
-          style={{ fontSize: 9, color: "#ff3e9a", textDecoration: "none", textShadow: "0 0 8px #ff3e9a" }}>
-          <XIcon /><span>FOLLOW</span>
+        <a href={X_URL} target="_blank" rel="noopener noreferrer" aria-label="X"
+          className="flex items-center justify-center transition-all hover:scale-110"
+          style={{ width: 42, height: 42, color: "#fff", background: "rgba(8,3,16,0.55)", border: "2px solid #ff3e9a", boxShadow: "0 0 16px #ff3e9a88" }}>
+          <XIcon size={20} />
         </a>
       </div>
 
-      {/* Bottom-left content block */}
-      <div className="absolute z-20 left-0 bottom-0 p-6 md:p-12 w-full md:max-w-2xl">
-        {/* neon accent line */}
-        <div className="mb-4 h-[3px] w-24" style={{ background: "linear-gradient(90deg,#ff3e9a,#19e0ff)", boxShadow: "0 0 12px #ff3e9a" }} />
-
-        <div className="leading-none select-none">
-          <div className="text-xl md:text-2xl mb-2" style={{ color: "#19e0ff", textShadow: "0 0 14px #19e0ff, 2px 2px 0 #06223a" }}>
+      {/* Centered content */}
+      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-4">
+        <div className="bob select-none">
+          <div className="text-2xl md:text-3xl tracking-[0.25em]" style={{ color: "#19e0ff", textShadow: "0 0 16px #19e0ff, 2px 2px 0 #06223a" }}>
             PIXEL
           </div>
-          <div className="text-6xl md:text-8xl font-bold"
+          <div className="text-7xl md:text-9xl font-black title-glow leading-none"
             style={{
-              backgroundImage: "linear-gradient(180deg,#fff3b0 0%,#ff8a3d 40%,#ff2e88 75%,#a32bd6 100%)",
+              backgroundImage: "linear-gradient(180deg,#fff3b0 0%,#ff8a3d 38%,#ff2e88 72%,#a32bd6 100%)",
               WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent",
-              filter: "drop-shadow(0 0 24px rgba(255,46,136,0.55)) drop-shadow(4px 6px 0 rgba(60,10,40,0.8))",
             }}>
             GTA
           </div>
-          <div className="mt-3 text-[10px] tracking-[0.3em]" style={{ color: "#ffb3d9", textShadow: "0 0 10px #ff3e9a88" }}>
-            VICE PIXEL CITY · SOLANA
+          <div className="mt-3 text-[13px] md:text-base tracking-[0.35em]" style={{ color: "#ffb3d9", textShadow: "0 0 10px #ff3e9a88" }}>
+            VICE PIXEL CITY
           </div>
         </div>
 
-        {/* CTAs: guest + wallet */}
-        <div className="mt-7 flex flex-col sm:flex-row gap-3">
+        {/* Big animated buttons */}
+        <div className="mt-10 flex flex-col sm:flex-row gap-5 items-center">
           <button onClick={() => enter("guest")}
-            className="px-8 py-4 text-sm font-bold text-white cursor-pointer active:scale-95 transition-all"
-            style={{ background: "linear-gradient(180deg,#ff5fb0,#ff1e7a)", border: "3px solid #ffd0e8", boxShadow: "0 0 28px #ff2e8899, 5px 5px 0 #5a0a2e" }}>
-            ▶ PLAY AS GUEST
+            className="btn-neon px-12 py-5 text-xl md:text-2xl font-black text-white cursor-pointer"
+            style={{ background: "linear-gradient(180deg,#ff5fb0,#ff1e7a)", border: "3px solid #ffd0e8", ["--g" as string]: "#ff2e88aa", ["--s" as string]: "#5a0a2e" }}>
+            <span className="relative z-10">▶ PLAY AS GUEST</span>
           </button>
           <button onClick={walletClick}
-            className="px-8 py-4 text-sm font-bold cursor-pointer active:scale-95 transition-all"
-            style={{ color: connected ? "#06121f" : "#19e0ff", background: connected ? "linear-gradient(180deg,#5ff0ff,#19c8e0)" : "rgba(8,3,16,0.4)", border: "3px solid #19e0ff", boxShadow: "0 0 24px #19e0ff66, 5px 5px 0 #063040" }}>
-            {connected ? `✓ ${publicKey?.toBase58().slice(0, 4)}…${publicKey?.toBase58().slice(-4)}` : "◈ LOGIN WALLET"}
+            className="btn-neon px-12 py-5 text-xl md:text-2xl font-black cursor-pointer"
+            style={{ color: connected ? "#06121f" : "#bff6ff", background: connected ? "linear-gradient(180deg,#5ff0ff,#19c8e0)" : "linear-gradient(180deg,rgba(25,224,255,0.18),rgba(25,224,255,0.05))", border: "3px solid #19e0ff", ["--g" as string]: "#19e0ff88", ["--s" as string]: "#063040" }}>
+            <span className="relative z-10">{connected ? `✓ ${publicKey?.toBase58().slice(0, 4)}…${publicKey?.toBase58().slice(-4)}` : "◈ LOGIN WALLET"}</span>
           </button>
         </div>
 
-        {/* press start blink + CA */}
-        <div className="mt-6 flex flex-col gap-2">
-          <div className="text-[9px]" style={{ color: "#ffd23d", opacity: blink ? 1 : 0.35, transition: "opacity 0.2s", textShadow: "0 0 8px #ffae33" }}>
-            ▶ INSERT COIN · STEAL · DRIVE · EARN {TICKER}
-          </div>
-          <CADisplay />
-          <div className="text-[8px] text-white/30">{GAME_CONFIG.subtitle} · {GAME_CONFIG.network}</div>
+        {/* Insert-coin blink */}
+        <div className="mt-7 text-base md:text-lg tracking-[0.2em]" style={{ fontFamily: "var(--font-mono)", color: "#ffd23d", opacity: blink ? 1 : 0.35, transition: "opacity 0.2s", textShadow: "0 0 8px #ffae33" }}>
+          ▶ INSERT COIN · STEAL · DRIVE · EARN {TICKER}
         </div>
+
+        {/* CA — large */}
+        <CADisplay />
+      </div>
+
+      {/* Footer */}
+      <div className="absolute bottom-4 left-0 right-0 z-20 text-center text-[12px] tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "rgba(255,255,255,0.35)" }}>
+        {GAME_CONFIG.subtitle} · {GAME_CONFIG.network}
       </div>
     </main>
   );
@@ -119,11 +111,12 @@ function CADisplay() {
   const isReal = CA !== "SOON" && CA !== "";
   function copy() { if (!isReal) return; navigator.clipboard.writeText(CA); setCopied(true); setTimeout(() => setCopied(false), 1500); }
   return (
-    <div>
-      <span className="text-[7px] text-white/40">CA: </span>
+    <div className="mt-6 flex items-center gap-2 px-5 py-2"
+      style={{ fontFamily: "var(--font-mono)", background: "rgba(8,3,16,0.55)", border: "2px solid #ff3e9a55", boxShadow: "0 0 18px #ff3e9a33" }}>
+      <span className="text-base md:text-lg" style={{ color: "#19e0ff" }}>CA:</span>
       <span onClick={copy}
-        className={isReal ? "text-[7px] cursor-pointer transition-opacity hover:opacity-70" : "text-[7px]"}
-        style={{ color: copied ? "#FFD700" : isReal ? "#7CFC6B" : "#b8859a" }}
+        className={isReal ? "text-base md:text-lg cursor-pointer transition-opacity hover:opacity-70" : "text-base md:text-lg"}
+        style={{ color: copied ? "#FFD700" : isReal ? "#7CFC6B" : "#ffd0e8", letterSpacing: "0.05em", wordBreak: "break-all" }}
         title={isReal ? "Click to copy" : undefined}>
         {copied ? "COPIED!" : CA}
       </span>
@@ -131,9 +124,9 @@ function CADisplay() {
   );
 }
 
-function XIcon() {
+function XIcon({ size = 12 }: { size?: number }) {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
       <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
     </svg>
   );
