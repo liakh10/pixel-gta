@@ -65,6 +65,17 @@ body {
 @keyframes introWord { 0% { opacity: 0; transform: translateY(8px); } 100% { opacity: 1; transform: none; } }
 .intro-word { animation: introWord 0.7s ease-out both; }
 
+/* Cinematic intro → menu transition */
+@keyframes introZoomOut {
+  0% { opacity: 1; transform: scale(1); filter: blur(0); }
+  100% { opacity: 0; transform: scale(1.35); filter: blur(8px); }
+}
+.intro-leaving { animation: introZoomOut 0.8s cubic-bezier(.5,0,.75,0) forwards; }
+@keyframes flashWipe { 0% { opacity: 0; } 35% { opacity: 0.9; } 100% { opacity: 0; } }
+.flash-wipe { animation: flashWipe 0.8s ease-out forwards; }
+@keyframes menuEnter { 0% { opacity: 0; transform: scale(1.06); } 100% { opacity: 1; transform: none; } }
+.menu-enter { animation: menuEnter 0.8s cubic-bezier(.2,.8,.2,1) both; }
+
 .wallet-adapter-modal-wrapper { font-family: 'Press Start 2P', monospace !important; }
 
 /* simple HUD scrollbar hide */
