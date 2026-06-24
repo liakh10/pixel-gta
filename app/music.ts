@@ -7,6 +7,8 @@ const TRACKS: Track[] = [
   { name: "NEON DRIVE", bpm: 100, chords: [[57, 60, 64], [53, 57, 60], [48, 52, 55], [50, 55, 59]] },
   { name: "SUNSET CRUISE", bpm: 90, chords: [[50, 53, 57], [46, 50, 53], [53, 57, 60], [48, 52, 55]] },
   { name: "MIAMI HEAT", bpm: 112, chords: [[52, 55, 59], [48, 52, 55], [55, 59, 62], [50, 54, 57]] },
+  { name: "MIDNIGHT RUN", bpm: 104, chords: [[55, 58, 62], [50, 53, 57], [57, 60, 64], [52, 55, 59]] },
+  { name: "PALM BOULEVARD", bpm: 96, chords: [[57, 60, 64], [55, 59, 62], [53, 57, 60], [52, 55, 59]] },
 ];
 
 function mtof(m: number): number { return 440 * Math.pow(2, (m - 69) / 12); }

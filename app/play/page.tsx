@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { GameHandle, HudState } from "./engine/game";
 import { display, mono } from "../fonts";
+import { MusicEngine } from "../music";
 
 const EMPTY: HudState = {
   cash: 0, hp: 100, maxHp: 100, armor: 0, maxArmor: 0, wanted: 0,
@@ -16,7 +17,7 @@ const TIPS = [
   "Jobs pay big — chase the gold $ markers.",
   "Heat rising? Lose the cops to drop your stars.",
   "Spend $PIXELGTA at shops for guns, armor & speed.",
-  "Blue markers are shops. Gold are jobs.",
+  "Grab the colorful gems & stars for fast cash.",
 ];
 
 export default function PlayPage() {
@@ -24,17 +25,24 @@ export default function PlayPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const miniRef = useRef<HTMLCanvasElement>(null);
   const handleRef = useRef<GameHandle | null>(null);
+  const musicRef = useRef<MusicEngine | null>(null);
   const [hud, setHud] = useState<HudState>(EMPTY);
-  const [phase, setPhase] = useState<"loading" | "playing">("loading");
+  const [phase, setPhase] = useState<"splash" | "loading" | "playing">("splash");
   const [progress, setProgress] = useState(0);
   const [ready, setReady] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [musicOn, setMusicOn] = useState(true);
+  const [trackName, setTrackName] = useState("NEON DRIVE");
   const [mode, setMode] = useState<{ mode: string; address: string | null } | null>(null);
   const [tip] = useState(() => TIPS[Math.floor(Math.random() * TIPS.length)]);
 
   useEffect(() => {
     try { const s = sessionStorage.getItem("pixelgta_player"); if (s) setMode(JSON.parse(s)); } catch { /* */ }
+    musicRef.current = new MusicEngine();
+    return () => { musicRef.current?.dispose(); };
   }, []);
 
+  // mount engine
   useEffect(() => {
     let handle: GameHandle | null = null;
     let disposed = false;
@@ -53,27 +61,53 @@ export default function PlayPage() {
   useEffect(() => {
     if (phase !== "loading") return;
     const t = setInterval(() => {
-      setProgress((p) => {
-        const cap = ready ? 100 : 90;
-        const next = Math.min(cap, p + (ready ? 8 : 2 + Math.random() * 4));
-        return next;
-      });
+      setProgress((p) => Math.min(ready ? 100 : 90, p + (ready ? 8 : 2 + Math.random() * 4)));
     }, 60);
     return () => clearInterval(t);
   }, [phase, ready]);
 
   useEffect(() => {
     if (phase === "loading" && progress >= 100 && ready) {
-      const t = setTimeout(() => setPhase("playing"), 350);
+      const t = setTimeout(() => setPhase("playing"), 300);
       return () => clearTimeout(t);
     }
   }, [progress, ready, phase]);
+
+  const doPause = useCallback((p: boolean) => {
+    setPaused(p);
+    handleRef.current?.setPaused(p);
+  }, []);
+
+  // Esc to toggle pause while playing
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === "Escape" && phase === "playing") { e.preventDefault(); doPause(!paused); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [phase, paused, doPause]);
+
+  // START — first gesture: enables audio + music, then loads
+  function start() {
+    const off = (() => { try { return localStorage.getItem("pixelgta_music_off") === "1"; } catch { return false; } })();
+    if (!off && musicRef.current) { musicRef.current.play(); setMusicOn(true); setTrackName(musicRef.current.trackName); }
+    else setMusicOn(false);
+    setPhase("loading");
+  }
+
+  function toggleMusic() {
+    const m = musicRef.current; if (!m) return;
+    m.toggle(); setMusicOn(m.playing);
+    try { localStorage.setItem("pixelgta_music_off", m.playing ? "0" : "1"); } catch { /* */ }
+  }
+  function nextTrack() { const m = musicRef.current; if (!m) return; m.next(); setTrackName(m.trackName); setMusicOn(m.playing); }
+  function backToMenu() { musicRef.current?.pause(); router.push("/"); }
 
   const hpPct = Math.max(0, (hud.hp / hud.maxHp) * 100);
   const armorPct = hud.maxArmor > 0 ? (hud.armor / hud.maxArmor) * 100 : 0;
 
   return (
-    <div className="fixed inset-0 bg-black overflow-hidden select-none" style={{ cursor: phase === "playing" ? "none" : "default" }}>
+    <div className={`fixed inset-0 bg-black overflow-hidden select-none ${display.variable} ${mono.variable}`} style={{ cursor: phase === "playing" && !paused ? "none" : "default" }}>
       <div ref={containerRef} className="absolute inset-0" />
 
       {/* ── HUD ── */}
@@ -92,12 +126,18 @@ export default function PlayPage() {
           )}
         </div>
 
+        {/* Pause button (clickable) */}
+        <button onClick={() => doPause(true)} className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-auto cursor-pointer px-3 py-1.5 text-[9px] hover:brightness-125"
+          style={{ color: "#fff", background: "rgba(8,10,18,0.7)", border: "2px solid #ffffff44" }}>
+          ❚❚ PAUSE
+        </button>
+
         <div className="absolute top-3 right-3" style={{ width: 160, height: 160, border: "3px solid #1f2735", boxShadow: "0 0 0 2px #000, 4px 4px 0 rgba(0,0,0,0.5)", background: "#0a0e16" }}>
           <canvas ref={miniRef} width={160} height={160} style={{ width: "100%", height: "100%", imageRendering: "pixelated" }} />
         </div>
 
         {hud.missionText && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 text-center px-4 py-2" style={{ background: "rgba(8,10,18,0.8)", border: "2px solid #FFD23D" }}>
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 text-center px-4 py-2" style={{ background: "rgba(8,10,18,0.8)", border: "2px solid #FFD23D" }}>
             <div className="text-[#FFD23D] text-[9px]">{hud.missionText}</div>
             <div className="text-white text-[8px] mt-1">⏱ {hud.missionTime}s</div>
           </div>
@@ -139,43 +179,79 @@ export default function PlayPage() {
         {hud.gameOver && (
           <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(40,0,0,0.45)" }}>
             <div className="text-center">
-              <div className="text-[#ff3b3b]" style={{ fontSize: 42, textShadow: "0 0 30px #ff3b3b, 4px 4px 0 #300" }}>
-                {hud.gameOver === "wasted" ? "WASTED" : "BUSTED"}
-              </div>
+              <div className="text-[#ff3b3b]" style={{ fontSize: 42, textShadow: "0 0 30px #ff3b3b, 4px 4px 0 #300" }}>{hud.gameOver === "wasted" ? "WASTED" : "BUSTED"}</div>
               <div className="text-[#c8c8c8] text-[9px] mt-3">respawning… (−10% cash)</div>
             </div>
           </div>
         )}
       </div>
 
-      {/* ── Loading screen ── */}
+      {/* ── Pause overlay ── */}
+      {paused && phase === "playing" && (
+        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center" style={{ background: "rgba(4,2,10,0.82)", fontFamily: "var(--font-display)" }}>
+          <div className="text-5xl md:text-6xl font-black mb-8" style={{ backgroundImage: "linear-gradient(180deg,#fff3b0,#ff8a3d,#ff2e88,#a32bd6)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", filter: "drop-shadow(0 0 20px rgba(255,46,136,0.5))" }}>PAUSED</div>
+          <div className="flex flex-col gap-3.5 w-full max-w-xs px-6">
+            <button onClick={() => doPause(false)} className="btn-neon w-full py-4 text-lg font-black text-white cursor-pointer"
+              style={{ background: "linear-gradient(180deg,#ff5fb0,#ff1e7a)", border: "3px solid #ffd0e8", ["--g" as string]: "#ff2e88aa", ["--s" as string]: "#5a0a2e" }}>
+              <span className="relative z-10">▶ RESUME</span>
+            </button>
+            <button onClick={toggleMusic} className="w-full py-3 text-base cursor-pointer hover:brightness-110" style={{ color: "#19e0ff", border: "3px solid #19e0ff", background: "rgba(25,224,255,0.08)" }}>
+              ♪ MUSIC {musicOn ? "ON" : "OFF"}{musicOn ? ` · ${trackName}` : ""}
+            </button>
+            <button onClick={nextTrack} className="w-full py-3 text-base cursor-pointer hover:brightness-110" style={{ color: "#ffd23d", border: "3px solid #ffd23d88", background: "rgba(255,210,61,0.06)" }}>
+              ⏭ NEXT TRACK
+            </button>
+            <button onClick={backToMenu} className="w-full py-4 text-lg font-black cursor-pointer hover:brightness-110" style={{ color: "#ff6b7e", border: "3px solid #ff6b7e", background: "rgba(255,107,126,0.08)" }}>
+              ◀ BACK TO MENU
+            </button>
+          </div>
+          <div className="mt-6 text-[11px]" style={{ fontFamily: "var(--font-mono)", color: "#ffb3d9" }}>press ESC to resume</div>
+        </div>
+      )}
+
+      {/* ── Splash (first gesture → starts music) ── */}
+      {phase === "splash" && (
+        <Splash onStart={start} tip={tip} />
+      )}
+
+      {/* ── Loading ── */}
       {phase === "loading" && (
-        <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center ${display.variable} ${mono.variable}`} style={{ fontFamily: "var(--font-display)" }}>
+        <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center`} style={{ fontFamily: "var(--font-display)" }}>
           <div className="absolute inset-0" style={{ backgroundImage: "url(/hero.png)", backgroundSize: "cover", backgroundPosition: "center", filter: "brightness(0.4) saturate(1.2)" }} />
           <div className="absolute inset-0" style={{ background: "linear-gradient(0deg, rgba(8,3,16,0.95), rgba(20,6,34,0.7))" }} />
           <div className="absolute inset-0 pointer-events-none" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 3px)" }} />
-
           <div className="relative z-10 flex flex-col items-center w-full max-w-lg px-8">
-            <div className="text-5xl md:text-6xl font-black mb-3"
-              style={{ backgroundImage: "linear-gradient(180deg,#fff3b0,#ff8a3d,#ff2e88,#a32bd6)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", filter: "drop-shadow(0 0 20px rgba(255,46,136,0.5))" }}>
-              PIXEL GTA
-            </div>
+            <div className="text-5xl md:text-6xl font-black mb-3" style={{ backgroundImage: "linear-gradient(180deg,#fff3b0,#ff8a3d,#ff2e88,#a32bd6)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", filter: "drop-shadow(0 0 20px rgba(255,46,136,0.5))" }}>PIXEL GTA</div>
             <div className="text-sm md:text-base mb-10 tracking-[0.25em]" style={{ fontFamily: "var(--font-mono)", color: "#19e0ff", textShadow: "0 0 10px #19e0ff" }}>ENTERING VICE PIXEL CITY…</div>
-
-            {/* progress bar */}
             <div className="w-full h-5 relative" style={{ background: "#10081a", border: "3px solid #ff2e88", boxShadow: "0 0 18px #ff2e8855" }}>
               <div className="h-full transition-all duration-100" style={{ width: `${progress}%`, background: "linear-gradient(90deg,#ff2e88,#ff8a3d,#19e0ff)", boxShadow: "0 0 14px #ff2e8899" }} />
-              <span className="absolute inset-0 flex items-center justify-center text-[8px] text-white">{Math.floor(progress)}%</span>
+              <span className="absolute inset-0 flex items-center justify-center text-[10px] text-white" style={{ fontFamily: "var(--font-mono)" }}>{Math.floor(progress)}%</span>
             </div>
-
-            <div className="mt-8 text-[8px] text-center leading-relaxed" style={{ color: "#ffb3d9" }}>
-              <span className="text-white/40">TIP: </span>{tip}
-            </div>
+            <div className="mt-8 text-sm text-center leading-relaxed" style={{ fontFamily: "var(--font-mono)", color: "#ffb3d9" }}><span className="text-white/40">TIP: </span>{tip}</div>
           </div>
-
-          <button onClick={() => router.push("/")} className="absolute bottom-6 left-6 z-10 text-[8px] text-white/40 hover:text-white/70 cursor-pointer">◀ MENU</button>
         </div>
       )}
+    </div>
+  );
+}
+
+function Splash({ onStart, tip }: { onStart: () => void; tip: string }) {
+  return (
+    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center" style={{ fontFamily: "var(--font-display)" }}>
+      <div className="absolute inset-0" style={{ backgroundImage: "url(/hero.png)", backgroundSize: "cover", backgroundPosition: "center", filter: "brightness(0.5) saturate(1.2)" }} />
+      <div className="absolute inset-0" style={{ background: "radial-gradient(60% 70% at 50% 50%, rgba(8,3,16,0.7), rgba(8,3,16,0.95))" }} />
+      <div className="absolute inset-0 pointer-events-none" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.16) 2px, rgba(0,0,0,0.16) 3px)" }} />
+      <div className="relative z-10 flex flex-col items-center px-6 text-center">
+        <div className="text-2xl md:text-3xl tracking-[0.3em] mb-1" style={{ color: "#19e0ff", textShadow: "0 0 16px #19e0ff" }}>PIXEL</div>
+        <div className="text-7xl md:text-8xl font-black title-glow leading-none mb-3" style={{ backgroundImage: "linear-gradient(180deg,#fff3b0,#ff8a3d,#ff2e88,#a32bd6)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent" }}>GTA</div>
+        <div className="text-xs md:text-sm tracking-[0.35em] mb-10" style={{ color: "#ffb3d9", textShadow: "0 0 10px #ff3e9a88" }}>VICE PIXEL CITY</div>
+        <button onClick={onStart} className="btn-neon px-16 py-5 text-2xl font-black text-white cursor-pointer"
+          style={{ background: "linear-gradient(180deg,#ff5fb0,#ff1e7a)", border: "3px solid #ffd0e8", ["--g" as string]: "#ff2e88aa", ["--s" as string]: "#5a0a2e" }}>
+          <span className="relative z-10">▶ ENTER</span>
+        </button>
+        <div className="mt-6 text-sm tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "#19e0ff" }}>♪ press ENTER to start with music</div>
+        <div className="mt-2 text-xs" style={{ fontFamily: "var(--font-mono)", color: "#ffb3d9" }}>TIP: {tip}</div>
+      </div>
     </div>
   );
 }

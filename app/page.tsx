@@ -119,7 +119,7 @@ export default function Home() {
           <div className="grid grid-cols-3 gap-2.5">
             <MenuChip label="🏆" sub="RANKS" onClick={() => setModal("leaderboard")} />
             <MenuChip label="⚙" sub="SETTINGS" onClick={() => setModal("settings")} />
-            <MenuChip label="❔" sub="HOW TO" onClick={() => setModal("howto")} />
+            <MenuChip label="❔" sub="HOW TO PLAY" onClick={() => setModal("howto")} />
           </div>
         </div>
       </div>

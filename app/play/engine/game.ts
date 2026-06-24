@@ -27,6 +27,7 @@ export interface GameHandle {
   onState: (cb: (s: HudState) => void) => void;
   buy: (id: "health" | "armor" | "gun" | "carSpeed" | "carArmor") => void;
   setMinimap: (c: HTMLCanvasElement | null) => void;
+  setPaused: (b: boolean) => void;
   respawn: () => void;
   dispose: () => void;
 }
@@ -713,14 +714,14 @@ export function createGame(container: HTMLElement): GameHandle {
   let raf = 0;
   let last = performance.now();
   let acc = 0;
+  let paused = false;
   function loop() {
     const now = performance.now();
     let dt = (now - last) / 1000; last = now;
     if (dt > 0.05) dt = 0.05;
-    update(dt);
+    if (!paused) { update(dt); input.endFrame(); }
     render();
     drawMinimap();
-    input.endFrame();
     acc += dt;
     if (acc > 0.06) { acc = 0; pushState(); }
     raf = requestAnimationFrame(loop);
@@ -731,6 +732,7 @@ export function createGame(container: HTMLElement): GameHandle {
     onState: (cb) => { stateCb = cb; pushState(); },
     buy: (id) => { if (econ.buy(id)) { applyStats(); if (id === "gun") player.ammo += 150; pushState(); sfx.cash(); } },
     setMinimap: (c) => { mini = c; },
+    setPaused: (b) => { paused = b; last = performance.now(); },
     respawn: () => doRespawn(),
     dispose: () => {
       cancelAnimationFrame(raf);
