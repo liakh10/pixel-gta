@@ -27,7 +27,7 @@ export default function PlayPage() {
   const handleRef = useRef<GameHandle | null>(null);
   const musicRef = useRef<MusicEngine | null>(null);
   const [hud, setHud] = useState<HudState>(EMPTY);
-  const [phase, setPhase] = useState<"splash" | "loading" | "playing">("splash");
+  const [phase, setPhase] = useState<"loading" | "playing">("loading");
   const [progress, setProgress] = useState(0);
   const [ready, setReady] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -38,8 +38,14 @@ export default function PlayPage() {
 
   useEffect(() => {
     try { const s = sessionStorage.getItem("pixelgta_player"); if (s) setMode(JSON.parse(s)); } catch { /* */ }
-    musicRef.current = new MusicEngine();
-    return () => { musicRef.current?.dispose(); };
+    const e = new MusicEngine();
+    musicRef.current = e;
+    const off = (() => { try { return localStorage.getItem("pixelgta_music_off") === "1"; } catch { return false; } })();
+    if (!off) { e.play(); setMusicOn(true); setTrackName(e.trackName); } else setMusicOn(false);
+    // fallback if autoplay is blocked: start on first interaction
+    const startOnce = () => { if (!off && !e.playing) { e.play(); setMusicOn(true); setTrackName(e.trackName); } window.removeEventListener("pointerdown", startOnce); };
+    window.addEventListener("pointerdown", startOnce);
+    return () => { window.removeEventListener("pointerdown", startOnce); e.dispose(); };
   }, []);
 
   // mount engine
@@ -86,14 +92,6 @@ export default function PlayPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [phase, paused, doPause]);
-
-  // START — first gesture: enables audio + music, then loads
-  function start() {
-    const off = (() => { try { return localStorage.getItem("pixelgta_music_off") === "1"; } catch { return false; } })();
-    if (!off && musicRef.current) { musicRef.current.play(); setMusicOn(true); setTrackName(musicRef.current.trackName); }
-    else setMusicOn(false);
-    setPhase("loading");
-  }
 
   function toggleMusic() {
     const m = musicRef.current; if (!m) return;
@@ -209,11 +207,6 @@ export default function PlayPage() {
         </div>
       )}
 
-      {/* ── Splash (first gesture → starts music) ── */}
-      {phase === "splash" && (
-        <Splash onStart={start} tip={tip} />
-      )}
-
       {/* ── Loading ── */}
       {phase === "loading" && (
         <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center`} style={{ fontFamily: "var(--font-display)" }}>
@@ -231,27 +224,6 @@ export default function PlayPage() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function Splash({ onStart, tip }: { onStart: () => void; tip: string }) {
-  return (
-    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center" style={{ fontFamily: "var(--font-display)" }}>
-      <div className="absolute inset-0" style={{ backgroundImage: "url(/hero.png)", backgroundSize: "cover", backgroundPosition: "center", filter: "brightness(0.5) saturate(1.2)" }} />
-      <div className="absolute inset-0" style={{ background: "radial-gradient(60% 70% at 50% 50%, rgba(8,3,16,0.7), rgba(8,3,16,0.95))" }} />
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.16) 2px, rgba(0,0,0,0.16) 3px)" }} />
-      <div className="relative z-10 flex flex-col items-center px-6 text-center">
-        <div className="text-2xl md:text-3xl tracking-[0.3em] mb-1" style={{ color: "#19e0ff", textShadow: "0 0 16px #19e0ff" }}>PIXEL</div>
-        <div className="text-7xl md:text-8xl font-black title-glow leading-none mb-3" style={{ backgroundImage: "linear-gradient(180deg,#fff3b0,#ff8a3d,#ff2e88,#a32bd6)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent" }}>GTA</div>
-        <div className="text-xs md:text-sm tracking-[0.35em] mb-10" style={{ color: "#ffb3d9", textShadow: "0 0 10px #ff3e9a88" }}>VICE PIXEL CITY</div>
-        <button onClick={onStart} className="btn-neon px-16 py-5 text-2xl font-black text-white cursor-pointer"
-          style={{ background: "linear-gradient(180deg,#ff5fb0,#ff1e7a)", border: "3px solid #ffd0e8", ["--g" as string]: "#ff2e88aa", ["--s" as string]: "#5a0a2e" }}>
-          <span className="relative z-10">▶ ENTER</span>
-        </button>
-        <div className="mt-6 text-sm tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "#19e0ff" }}>♪ press ENTER to start with music</div>
-        <div className="mt-2 text-xs" style={{ fontFamily: "var(--font-mono)", color: "#ffb3d9" }}>TIP: {tip}</div>
-      </div>
     </div>
   );
 }
