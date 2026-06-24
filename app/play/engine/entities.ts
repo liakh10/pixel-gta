@@ -47,7 +47,7 @@ export class Bullet {
   ) { this.life = life; }
 }
 
-export type PickupKind = "cash" | "gun";
+export type PickupKind = "cash" | "gun" | "gem" | "star" | "health" | "armor";
 export class Pickup {
   bob = Math.random() * Math.PI * 2;
   constructor(public x: number, public y: number, public kind: PickupKind, public value = 0) {}

@@ -3,7 +3,7 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { GAME_CONFIG, X_URL, CA, TICKER } from "./config";
 import { display, mono } from "./fonts";
 
@@ -12,6 +12,7 @@ export default function Home() {
   const { setVisible } = useWalletModal();
   const router = useRouter();
   const [blink, setBlink] = useState(true);
+  const [modal, setModal] = useState<null | "leaderboard" | "settings" | "howto">(null);
 
   useEffect(() => {
     const t = setInterval(() => setBlink((b) => !b), 650);
@@ -45,16 +46,11 @@ export default function Home() {
       <div className="absolute inset-0 z-[1]" style={{ background: "linear-gradient(0deg, rgba(8,3,16,0.9) 0%, transparent 35%)" }} />
       <div className="absolute inset-0 z-[2] pointer-events-none" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.14) 2px, rgba(0,0,0,0.14) 3px)" }} />
 
-      {/* Top bar: ticker + X (always) */}
-      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 py-5">
+      {/* Top bar: ticker */}
+      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-start px-6 py-5">
         <div className="px-3 py-1.5 text-[13px] tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "#19e0ff", border: "2px solid #19e0ff", background: "rgba(8,3,16,0.5)", boxShadow: "0 0 14px #19e0ff55", textShadow: "0 0 8px #19e0ff" }}>
           {TICKER}
         </div>
-        <a href={X_URL} target="_blank" rel="noopener noreferrer" aria-label="X"
-          className="flex items-center justify-center transition-all hover:scale-110"
-          style={{ width: 42, height: 42, color: "#fff", background: "rgba(8,3,16,0.55)", border: "2px solid #ff3e9a", boxShadow: "0 0 16px #ff3e9a88" }}>
-          <XIcon size={20} />
-        </a>
       </div>
 
       {/* Centered content */}
@@ -96,13 +92,132 @@ export default function Home() {
 
         {/* CA — large */}
         <CADisplay />
+
+        {/* X — under CA (always) */}
+        <a href={X_URL} target="_blank" rel="noopener noreferrer" aria-label="Follow on X"
+          className="mt-4 flex items-center gap-3 px-5 py-2.5 transition-all hover:scale-105"
+          style={{ color: "#fff", background: "rgba(8,3,16,0.55)", border: "2px solid #ff3e9a", boxShadow: "0 0 16px #ff3e9a77", fontFamily: "var(--font-mono)", fontSize: 18, letterSpacing: "0.1em" }}>
+          <XIcon size={20} /><span>FOLLOW ON X</span>
+        </a>
+
+        {/* Secondary menu — like a real game */}
+        <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+          <MenuChip label="🏆 LEADERBOARD" onClick={() => setModal("leaderboard")} />
+          <MenuChip label="⚙ SETTINGS" onClick={() => setModal("settings")} />
+          <MenuChip label="❔ HOW TO PLAY" onClick={() => setModal("howto")} />
+        </div>
       </div>
 
       {/* Footer */}
       <div className="absolute bottom-4 left-0 right-0 z-20 text-center text-[12px] tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "rgba(255,255,255,0.35)" }}>
         {GAME_CONFIG.subtitle} · {GAME_CONFIG.network}
       </div>
+
+      {/* Modals */}
+      {modal && <Modal onClose={() => setModal(null)} title={modal === "leaderboard" ? "🏆 LEADERBOARD" : modal === "settings" ? "⚙ SETTINGS" : "❔ HOW TO PLAY"}>
+        {modal === "leaderboard" && <Leaderboard />}
+        {modal === "settings" && <Settings />}
+        {modal === "howto" && <HowTo />}
+      </Modal>}
     </main>
+  );
+}
+
+function MenuChip({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick}
+      className="px-4 py-2 text-sm transition-all hover:scale-105 cursor-pointer"
+      style={{ fontFamily: "var(--font-display)", color: "#bff6ff", background: "rgba(8,3,16,0.5)", border: "2px solid #19e0ff66", boxShadow: "0 0 12px #19e0ff33" }}>
+      {label}
+    </button>
+  );
+}
+
+function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center p-4" style={{ background: "rgba(4,2,10,0.78)" }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md"
+        style={{ background: "linear-gradient(180deg,#160a26,#0c0518)", border: "3px solid #ff3e9a", boxShadow: "0 0 40px #ff3e9a55", fontFamily: "var(--font-display)" }}>
+        <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "2px solid #ff3e9a44" }}>
+          <span className="text-lg" style={{ color: "#ffd23d", textShadow: "0 0 10px #ffae33" }}>{title}</span>
+          <button onClick={onClose} aria-label="Close" className="text-xl text-white/70 hover:text-white cursor-pointer leading-none">✕</button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function Leaderboard() {
+  const [rows, setRows] = useState<{ name: string; score: number; you?: boolean }[]>([]);
+  useEffect(() => {
+    let mine = 0;
+    try { const s = localStorage.getItem("pixelgta_save_v1"); if (s) mine = JSON.parse(s).cash || 0; } catch { /* */ }
+    const fake = [
+      { name: "TommyV", score: 184200 }, { name: "BigSmoke", score: 152800 }, { name: "Sweet", score: 119400 },
+      { name: "Lance", score: 98700 }, { name: "Ryder", score: 76500 }, { name: "Ken_R", score: 54300 },
+      { name: "Maria", score: 41200 }, { name: "Cesar", score: 28900 },
+    ];
+    const all = [...fake, { name: "YOU", score: mine, you: true }].sort((a, b) => b.score - a.score).slice(0, 9);
+    setRows(all);
+  }, []);
+  return (
+    <div className="flex flex-col gap-1.5" style={{ fontFamily: "var(--font-mono)" }}>
+      {rows.map((r, i) => (
+        <div key={i} className="flex items-center justify-between px-3 py-1.5 text-base"
+          style={{ background: r.you ? "rgba(255,210,61,0.14)" : "rgba(255,255,255,0.04)", border: r.you ? "2px solid #ffd23d" : "2px solid transparent", color: r.you ? "#ffd23d" : "#cfe8ff" }}>
+          <span>{i + 1}. {r.name}</span>
+          <span style={{ color: "#7CFC6B" }}>${r.score.toLocaleString()}</span>
+        </div>
+      ))}
+      <div className="mt-2 text-center text-[11px]" style={{ color: "#ffb3d9" }}>your cash is your score — go farm {TICKER}</div>
+    </div>
+  );
+}
+
+function Settings() {
+  const [muted, setMuted] = useState(false);
+  const [done, setDone] = useState(false);
+  useEffect(() => { try { setMuted(localStorage.getItem("pixelgta_muted") === "1"); } catch { /* */ } }, []);
+  function toggle() { const n = !muted; setMuted(n); try { localStorage.setItem("pixelgta_muted", n ? "1" : "0"); } catch { /* */ } }
+  function reset() { try { localStorage.removeItem("pixelgta_save_v1"); } catch { /* */ } setDone(true); setTimeout(() => setDone(false), 1500); }
+  return (
+    <div className="flex flex-col gap-4" style={{ fontFamily: "var(--font-mono)" }}>
+      <div className="flex items-center justify-between text-lg">
+        <span style={{ color: "#cfe8ff" }}>SOUND</span>
+        <button onClick={toggle} className="px-4 py-1.5 cursor-pointer"
+          style={{ color: muted ? "#ff6b7e" : "#7CFC6B", border: `2px solid ${muted ? "#ff6b7e" : "#7CFC6B"}` }}>
+          {muted ? "OFF" : "ON"}
+        </button>
+      </div>
+      <div className="flex items-center justify-between text-lg">
+        <span style={{ color: "#cfe8ff" }}>PROGRESS</span>
+        <button onClick={reset} className="px-4 py-1.5 cursor-pointer" style={{ color: "#ff6b7e", border: "2px solid #ff6b7e" }}>
+          {done ? "DONE ✓" : "RESET"}
+        </button>
+      </div>
+      <div className="text-[11px] mt-1" style={{ color: "#ffb3d9" }}>sound & save are stored on this device.</div>
+    </div>
+  );
+}
+
+function HowTo() {
+  const rows = [
+    ["WASD", "move / drive"], ["MOUSE", "aim"], ["CLICK", "shoot / punch"],
+    ["F", "enter / exit car"], ["E", "start a job"], ["SPACE", "handbrake"],
+  ];
+  return (
+    <div className="flex flex-col gap-2" style={{ fontFamily: "var(--font-mono)" }}>
+      {rows.map(([k, v], i) => (
+        <div key={i} className="flex items-center justify-between text-base">
+          <span className="px-2 py-0.5" style={{ color: "#19e0ff", border: "2px solid #19e0ff66" }}>{k}</span>
+          <span style={{ color: "#cfe8ff" }}>{v}</span>
+        </div>
+      ))}
+      <div className="mt-2 text-[12px] leading-relaxed" style={{ color: "#ffb3d9" }}>
+        Grab the colorful pickups, jack cars, run jobs (gold $ markers) and spend {TICKER} at blue shop markers. Don&apos;t get 5 stars.
+      </div>
+    </div>
   );
 }
 

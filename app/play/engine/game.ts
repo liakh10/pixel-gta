@@ -85,13 +85,26 @@ export function createGame(container: HTMLElement): GameHandle {
 
   // job + shop markers
   const jobs: JobMarker[] = [];
-  for (let i = 0; i < 4; i++) { const p = world.randomRoadPoint(); jobs.push({ x: p.x, y: p.y, kind: MISSION_KINDS[i % MISSION_KINDS.length] }); }
+  for (let i = 0; i < 8; i++) { const p = world.randomRoadPoint(); jobs.push({ x: p.x, y: p.y, kind: MISSION_KINDS[i % MISSION_KINDS.length] }); }
   const shops: ShopMarker[] = [];
   ["GUNSHOP", "GARAGE", "HOSPITAL"].forEach((id) => { const p = world.randomWalkPoint(); shops.push({ x: p.x, y: p.y, shopId: id }); });
 
-  // scatter cash pickups
-  for (let i = 0; i < 14; i++) { const p = world.randomRoadPoint(); pickups.push(new Pickup(p.x, p.y, "cash", 40 + Math.floor(Math.random() * 80))); }
-  for (let i = 0; i < 4; i++) { const p = world.randomWalkPoint(); pickups.push(new Pickup(p.x, p.y, "gun", 0)); }
+  // ── scatter lots of colourful collectibles ──
+  function pickupValue(kind: string): number {
+    return kind === "cash" ? 40 + Math.floor(Math.random() * 90)
+      : kind === "gem" ? 150 + Math.floor(Math.random() * 130)
+      : kind === "star" ? 75 : 0;
+  }
+  function makePickup(kind: "cash" | "gem" | "star" | "health" | "armor" | "gun", onRoad: boolean) {
+    const p = onRoad ? world.randomRoadPoint() : world.randomWalkPoint();
+    pickups.push(new Pickup(p.x, p.y, kind, pickupValue(kind)));
+  }
+  for (let i = 0; i < 24; i++) makePickup("cash", true);
+  for (let i = 0; i < 16; i++) makePickup("gem", Math.random() < 0.5);
+  for (let i = 0; i < 12; i++) makePickup("star", Math.random() < 0.5);
+  for (let i = 0; i < 8; i++) makePickup("health", false);
+  for (let i = 0; i < 8; i++) makePickup("armor", false);
+  for (let i = 0; i < 6; i++) makePickup("gun", false);
 
   // ── spawn helpers ──
   function spawnTrafficCar() {
@@ -377,11 +390,17 @@ export function createGame(container: HTMLElement): GameHandle {
     for (let i = pickups.length - 1; i >= 0; i--) {
       const p = pickups[i];
       p.bob += dt * 3;
-      if (Math.hypot(p.x - player.x, p.y - player.y) < 18) {
-        if (p.kind === "cash") { econ.addCash(p.value); floatText(player.x, player.y - 14, `+$${p.value}`, "#7CFC6B"); sfx.cash(); }
-        else { player.ammo += 60; if (player.weapon === "fist" && econ.upgrades.gun > 0) player.weapon = econ.weapon(); floatText(player.x, player.y - 14, "+AMMO", "#ffd36b"); sfx.pickup(); }
-        pickups.splice(i, 1);
+      if (Math.hypot(p.x - player.x, p.y - player.y) >= 18) continue;
+      const fx = player.x, fy = player.y - 14;
+      switch (p.kind) {
+        case "cash": econ.addCash(p.value); floatText(fx, fy, `+$${p.value}`, "#7CFC6B"); sfx.cash(); break;
+        case "gem": econ.addCash(p.value); floatText(fx, fy, `◆ +$${p.value}`, "#19e0ff"); burst(p.x, p.y, "#19e0ff", 10, 80); sfx.cash(); break;
+        case "star": econ.addCash(p.value); floatText(fx, fy, `★ +$${p.value}`, "#FFD23D"); burst(p.x, p.y, "#FFD23D", 10, 80); sfx.pickup(); break;
+        case "health": player.health = Math.min(player.maxHealth, player.health + 50); floatText(fx, fy, "+HEALTH", "#ff6b7e"); sfx.pickup(); break;
+        case "armor": player.maxArmor = Math.max(player.maxArmor, 100); player.armor = Math.min(player.maxArmor, player.armor + 50); floatText(fx, fy, "+ARMOR", "#4aa6ff"); sfx.pickup(); break;
+        case "gun": player.ammo += 60; if (player.weapon === "fist" && econ.upgrades.gun > 0) player.weapon = econ.weapon(); floatText(fx, fy, "+AMMO", "#ffd36b"); sfx.pickup(); break;
       }
+      pickups.splice(i, 1);
     }
 
     // ── missions ──
@@ -445,6 +464,17 @@ export function createGame(container: HTMLElement): GameHandle {
     const wantCars = 16;
     if (cars.filter((c) => c.driver === "ai" && !c.police).length < wantCars && Math.random() < 0.4) spawnTrafficCar();
     if (peds.filter((p) => !p.isCop).length < 22 && Math.random() < 0.5) spawnPed();
+
+    // pickups: despawn far, respawn near → keep the map full & lively
+    for (let i = pickups.length - 1; i >= 0; i--)
+      if (Math.hypot(pickups[i].x - player.x, pickups[i].y - player.y) > 820) pickups.splice(i, 1);
+    if (pickups.length < 60 && Math.random() < 0.6) {
+      const kinds: ("cash" | "gem" | "star" | "health" | "armor")[] = ["cash", "cash", "gem", "star", "gem", "health", "armor"];
+      const k = kinds[(Math.random() * kinds.length) | 0];
+      const onRoad = k === "cash" || k === "gem";
+      const p = onRoad ? nearOffscreenRoad() : nearOffscreenWalk();
+      if (p) pickups.push(new Pickup(p.x, p.y, k, pickupValue(k)));
+    }
   }
 
   // ── render ──
@@ -486,10 +516,17 @@ export function createGame(container: HTMLElement): GameHandle {
       else drawMarker(m.dest.x, m.dest.y, "#7CFC6B", "▶");
     }
 
-    // pickups
+    // pickups (colourful glow + bob)
+    const now = performance.now();
     for (const p of pickups) {
       if (!inView(p.x, p.y, view)) continue;
-      const img = p.kind === "cash" ? sprites.cash : sprites.gun;
+      const col = pickupColor(p.kind);
+      const img = pickupImg(p.kind);
+      const glow = 8 + Math.sin(now / 260 + p.bob) * 2;
+      ctx.globalAlpha = 0.28;
+      ctx.fillStyle = col;
+      ctx.beginPath(); ctx.ellipse(p.x, p.y + 5, glow, glow * 0.5, 0, 0, 6.28); ctx.fill();
+      ctx.globalAlpha = 1;
       ctx.drawImage(img, p.x - 8, p.y - 8 + Math.sin(p.bob) * 2);
     }
 
@@ -508,13 +545,17 @@ export function createGame(container: HTMLElement): GameHandle {
         ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(c.x, c.y, 16, 0, 6.28); ctx.fill(); ctx.globalAlpha = 1;
       }
     }
-    // player
+    // player (with "YOU" highlight)
     if (!gameOver || deadT > 1.5) {
       if (player.onFoot) {
+        drawYouHighlight(player.x, player.y, 8);
         const flick = player.invuln > 0 && Math.floor(player.invuln * 20) % 2 === 0;
         if (!flick) drawRotated(sprites.person("player")[player.walkFrame], player.x, player.y, player.angle);
+        drawYouArrow(player.x, player.y - 14);
+      } else if (player.car) {
+        drawYouHighlight(player.car.x, player.car.y, 18);
+        drawYouArrow(player.car.x, player.car.y - 16);
       }
-      // (player in car already drawn as the car)
     }
     // muzzle/aim line on foot
     if (player.onFoot && player.weapon !== "fist") {
@@ -577,6 +618,28 @@ export function createGame(container: HTMLElement): GameHandle {
     ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, 4, 0, 6.28); ctx.fill();
     ctx.fillStyle = "#06121f"; ctx.font = "6px 'Press Start 2P', monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText(label, x, y + 0.5);
+  }
+
+  function drawYouHighlight(x: number, y: number, r: number) {
+    const t = performance.now() / 260;
+    const pr = r + Math.sin(t) * 2;
+    ctx.globalAlpha = 0.22; ctx.fillStyle = "#19e0ff";
+    ctx.beginPath(); ctx.ellipse(x, y + 5, pr, pr * 0.5, 0, 0, 6.28); ctx.fill();
+    ctx.globalAlpha = 0.9; ctx.strokeStyle = "#19e0ff"; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.ellipse(x, y + 5, pr, pr * 0.5, 0, 0, 6.28); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  function drawYouArrow(x: number, y: number) {
+    const yy = y + Math.sin(performance.now() / 300) * 2;
+    ctx.fillStyle = "#19e0ff";
+    ctx.beginPath(); ctx.moveTo(x - 4, yy - 5); ctx.lineTo(x + 4, yy - 5); ctx.lineTo(x, yy); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "#06121f"; ctx.lineWidth = 0.6; ctx.stroke();
+  }
+  function pickupColor(kind: string): string {
+    return kind === "cash" ? "#7CFC6B" : kind === "gem" ? "#19e0ff" : kind === "star" ? "#FFD23D" : kind === "health" ? "#ff6b7e" : kind === "armor" ? "#4aa6ff" : "#cfcfcf";
+  }
+  function pickupImg(kind: string): HTMLCanvasElement {
+    return kind === "cash" ? sprites.cash : kind === "gem" ? sprites.gem : kind === "star" ? sprites.star : kind === "health" ? sprites.health : kind === "armor" ? sprites.armor : sprites.gun;
   }
 
   function drawRotated(img: HTMLCanvasElement, x: number, y: number, angle: number, flat = false) {

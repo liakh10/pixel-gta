@@ -3,6 +3,10 @@ export class Sfx {
   private ctx: AudioContext | null = null;
   enabled = true;
 
+  constructor() {
+    try { this.enabled = localStorage.getItem("pixelgta_muted") !== "1"; } catch { /* */ }
+  }
+
   private ac(): AudioContext | null {
     if (!this.enabled) return null;
     if (!this.ctx) {

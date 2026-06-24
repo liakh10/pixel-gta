@@ -137,6 +137,54 @@ function buildGunPickup(): Canvas {
   return c;
 }
 
+function shadowEllipse(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.beginPath(); ctx.ellipse(8, 13, 6, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+}
+
+function buildGem(): Canvas {
+  const { c, ctx } = make(16, 16);
+  shadowEllipse(ctx);
+  // faceted diamond
+  ctx.fillStyle = "#19e0ff"; ctx.beginPath(); ctx.moveTo(8, 1); ctx.lineTo(14, 6); ctx.lineTo(8, 14); ctx.lineTo(2, 6); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#ff3e9a"; ctx.beginPath(); ctx.moveTo(8, 1); ctx.lineTo(8, 14); ctx.lineTo(2, 6); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#a855f7"; ctx.beginPath(); ctx.moveTo(5, 4); ctx.lineTo(11, 4); ctx.lineTo(8, 1); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#ffffff"; ctx.fillRect(7, 3, 2, 2);
+  return c;
+}
+
+function buildStar(): Canvas {
+  const { c, ctx } = make(16, 16);
+  shadowEllipse(ctx);
+  ctx.fillStyle = "#FFD23D";
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const r = i % 2 === 0 ? 7 : 3;
+    const x = 8 + Math.cos(a) * r, y = 8 + Math.sin(a) * r;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#fff6c0"; ctx.fillRect(7, 5, 2, 2);
+  return c;
+}
+
+function buildHealth(): Canvas {
+  const { c, ctx } = make(16, 16);
+  shadowEllipse(ctx);
+  rr(ctx, 3, 2, 10, 10, 2, "#f5f5f5");
+  ctx.fillStyle = "#e23b3b"; ctx.fillRect(7, 4, 2, 6); ctx.fillRect(5, 6, 6, 2);
+  return c;
+}
+
+function buildArmor(): Canvas {
+  const { c, ctx } = make(16, 16);
+  shadowEllipse(ctx);
+  ctx.fillStyle = "#4aa6ff";
+  ctx.beginPath(); ctx.moveTo(8, 2); ctx.lineTo(13, 4); ctx.lineTo(13, 8); ctx.lineTo(8, 13); ctx.lineTo(3, 8); ctx.lineTo(3, 4); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#bfe0ff"; ctx.fillRect(7, 5, 2, 5); ctx.fillRect(5, 6, 6, 2);
+  return c;
+}
+
 // ── Tiles (cached variants per type) ──
 export const T = { GRASS: 0, ROAD: 1, SIDEWALK: 2, BUILDING: 3, WATER: 4, PARK: 5 } as const;
 
@@ -185,6 +233,10 @@ export interface SpriteSet {
   tree: Canvas;
   cash: Canvas;
   gun: Canvas;
+  gem: Canvas;
+  star: Canvas;
+  health: Canvas;
+  armor: Canvas;
   tile: (type: number, variant: number) => Canvas;
   tileSize: number;
 }
@@ -196,7 +248,7 @@ export function buildSprites(tileSize: number): SpriteSet {
   const VARIANTS = 3;
 
   const palettes: Record<string, [string, string, string]> = {
-    player: ["#c0392b", "#e0ac69", "#2b2b2b"],
+    player: ["#2f7d32", "#5b3a1f", "#0e0e0e"],   // CJ — green shirt, dark skin, black hair
     ped1: ["#3b78c4", "#f1c27d", "#3a2a1a"],
     ped2: ["#43a047", "#c68642", "#111111"],
     ped3: ["#8e44ad", "#ffdbac", "#5a3a1a"],
@@ -220,6 +272,10 @@ export function buildSprites(tileSize: number): SpriteSet {
     tree: buildTree(),
     cash: buildCash(),
     gun: buildGunPickup(),
+    gem: buildGem(),
+    star: buildStar(),
+    health: buildHealth(),
+    armor: buildArmor(),
     tile: (type, variant) => {
       const k = `${type}_${variant % VARIANTS}`;
       if (!tileCache.has(k)) tileCache.set(k, buildTile(type, variant % VARIANTS, tileSize));
