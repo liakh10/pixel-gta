@@ -5,6 +5,6 @@ export const GAME_CONFIG = {
 };
 
 export const CA: string = "SOON";           // Replace with real CA on launch
-export const X_URL = "https://x.com/soon";   // Replace with your X handle
+export const X_URL = "https://x.com/pixelgta_solana";
 export const TICKER = "$PIXELGTA";
 export const TOKEN_NAME = "PIXELGTA";

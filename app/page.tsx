@@ -3,9 +3,10 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { GAME_CONFIG, X_URL, CA, TICKER } from "./config";
 import { display, mono } from "./fonts";
+import { MusicEngine } from "./music";
 
 export default function Home() {
   const { connected, publicKey } = useWallet();
@@ -14,10 +15,34 @@ export default function Home() {
   const [blink, setBlink] = useState(true);
   const [modal, setModal] = useState<null | "leaderboard" | "settings" | "howto">(null);
 
+  const engineRef = useRef<MusicEngine | null>(null);
+  const [musicOn, setMusicOn] = useState(false);
+  const [trackName, setTrackName] = useState("NEON DRIVE");
+
   useEffect(() => {
     const t = setInterval(() => setBlink((b) => !b), 650);
     return () => clearInterval(t);
   }, []);
+
+  // music engine + autostart on first interaction
+  useEffect(() => {
+    const e = new MusicEngine();
+    engineRef.current = e;
+    const off = (() => { try { return localStorage.getItem("pixelgta_music_off") === "1"; } catch { return false; } })();
+    const startOnce = () => {
+      if (!off && !e.playing) { e.play(); setMusicOn(true); setTrackName(e.trackName); }
+      window.removeEventListener("pointerdown", startOnce);
+    };
+    window.addEventListener("pointerdown", startOnce);
+    return () => { window.removeEventListener("pointerdown", startOnce); e.dispose(); };
+  }, []);
+
+  function toggleMusic() {
+    const e = engineRef.current; if (!e) return;
+    e.toggle(); setMusicOn(e.playing);
+    try { localStorage.setItem("pixelgta_music_off", e.playing ? "0" : "1"); } catch { /* */ }
+  }
+  function nextTrack() { const e = engineRef.current; if (!e) return; e.next(); setTrackName(e.trackName); setMusicOn(e.playing); }
 
   function enter(mode: "guest" | "wallet", address?: string) {
     sessionStorage.setItem("pixelgta_player", JSON.stringify({ mode, address: address ?? null }));
@@ -41,9 +66,8 @@ export default function Home() {
     <main className={`fixed inset-0 overflow-hidden ${display.variable} ${mono.variable}`} style={{ fontFamily: "var(--font-display)" }}>
       {/* Hero artwork */}
       <div className="absolute inset-0 z-0" style={{ backgroundImage: "url(/hero.png)", backgroundSize: "cover", backgroundPosition: "center" }} />
-      {/* Center darken so the centred UI pops */}
-      <div className="absolute inset-0 z-[1]" style={{ background: "radial-gradient(60% 75% at 50% 52%, rgba(8,3,16,0.86) 0%, rgba(10,4,20,0.55) 45%, rgba(10,4,20,0.15) 75%, transparent 100%)" }} />
-      <div className="absolute inset-0 z-[1]" style={{ background: "linear-gradient(0deg, rgba(8,3,16,0.9) 0%, transparent 35%)" }} />
+      <div className="absolute inset-0 z-[1]" style={{ background: "radial-gradient(58% 72% at 50% 50%, rgba(8,3,16,0.88) 0%, rgba(10,4,20,0.6) 45%, rgba(10,4,20,0.18) 75%, transparent 100%)" }} />
+      <div className="absolute inset-0 z-[1]" style={{ background: "linear-gradient(0deg, rgba(8,3,16,0.9) 0%, transparent 32%)" }} />
       <div className="absolute inset-0 z-[2] pointer-events-none" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.14) 2px, rgba(0,0,0,0.14) 3px)" }} />
 
       {/* Top bar: ticker */}
@@ -53,65 +77,60 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Centered content */}
-      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-4">
-        <div className="bob select-none">
-          <div className="text-2xl md:text-3xl tracking-[0.25em]" style={{ color: "#19e0ff", textShadow: "0 0 16px #19e0ff, 2px 2px 0 #06223a" }}>
-            PIXEL
-          </div>
+      {/* Centered content — tidy aligned column */}
+      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center px-4">
+        {/* logo */}
+        <div className="bob select-none text-center">
+          <div className="text-2xl md:text-3xl tracking-[0.3em]" style={{ color: "#19e0ff", textShadow: "0 0 16px #19e0ff, 2px 2px 0 #06223a" }}>PIXEL</div>
           <div className="text-7xl md:text-9xl font-black title-glow leading-none"
-            style={{
-              backgroundImage: "linear-gradient(180deg,#fff3b0 0%,#ff8a3d 38%,#ff2e88 72%,#a32bd6 100%)",
-              WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent",
-            }}>
+            style={{ backgroundImage: "linear-gradient(180deg,#fff3b0 0%,#ff8a3d 38%,#ff2e88 72%,#a32bd6 100%)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent" }}>
             GTA
           </div>
-          <div className="mt-3 text-[13px] md:text-base tracking-[0.35em]" style={{ color: "#ffb3d9", textShadow: "0 0 10px #ff3e9a88" }}>
-            VICE PIXEL CITY
-          </div>
+          <div className="mt-3 text-xs md:text-base tracking-[0.4em]" style={{ color: "#ffb3d9", textShadow: "0 0 10px #ff3e9a88" }}>VICE PIXEL CITY</div>
         </div>
 
-        {/* Big animated buttons */}
-        <div className="mt-10 flex flex-col sm:flex-row gap-5 items-center">
+        {/* primary CTAs — equal width */}
+        <div className="mt-9 w-full max-w-sm flex flex-col gap-3.5">
           <button onClick={() => enter("guest")}
-            className="btn-neon px-12 py-5 text-xl md:text-2xl font-black text-white cursor-pointer"
+            className="btn-neon w-full py-4 text-lg md:text-xl font-black text-white cursor-pointer text-center"
             style={{ background: "linear-gradient(180deg,#ff5fb0,#ff1e7a)", border: "3px solid #ffd0e8", ["--g" as string]: "#ff2e88aa", ["--s" as string]: "#5a0a2e" }}>
             <span className="relative z-10">▶ PLAY AS GUEST</span>
           </button>
           <button onClick={walletClick}
-            className="btn-neon px-12 py-5 text-xl md:text-2xl font-black cursor-pointer"
-            style={{ color: connected ? "#06121f" : "#bff6ff", background: connected ? "linear-gradient(180deg,#5ff0ff,#19c8e0)" : "linear-gradient(180deg,rgba(25,224,255,0.18),rgba(25,224,255,0.05))", border: "3px solid #19e0ff", ["--g" as string]: "#19e0ff88", ["--s" as string]: "#063040" }}>
+            className="btn-neon w-full py-4 text-lg md:text-xl font-black cursor-pointer text-center"
+            style={{ color: connected ? "#06121f" : "#bff6ff", background: connected ? "linear-gradient(180deg,#5ff0ff,#19c8e0)" : "linear-gradient(180deg,rgba(25,224,255,0.16),rgba(25,224,255,0.04))", border: "3px solid #19e0ff", ["--g" as string]: "#19e0ff88", ["--s" as string]: "#063040" }}>
             <span className="relative z-10">{connected ? `✓ ${publicKey?.toBase58().slice(0, 4)}…${publicKey?.toBase58().slice(-4)}` : "◈ LOGIN WALLET"}</span>
           </button>
         </div>
 
-        {/* Insert-coin blink */}
-        <div className="mt-7 text-base md:text-lg tracking-[0.2em]" style={{ fontFamily: "var(--font-mono)", color: "#ffd23d", opacity: blink ? 1 : 0.35, transition: "opacity 0.2s", textShadow: "0 0 8px #ffae33" }}>
+        {/* insert coin */}
+        <div className="mt-5 text-sm md:text-base tracking-[0.18em] text-center" style={{ fontFamily: "var(--font-mono)", color: "#ffd23d", opacity: blink ? 1 : 0.4, transition: "opacity 0.2s", textShadow: "0 0 8px #ffae33" }}>
           ▶ INSERT COIN · STEAL · DRIVE · EARN {TICKER}
         </div>
 
-        {/* CA — large */}
-        <CADisplay />
-
-        {/* X — under CA (always) */}
-        <a href={X_URL} target="_blank" rel="noopener noreferrer" aria-label="Follow on X"
-          className="mt-4 flex items-center gap-3 px-5 py-2.5 transition-all hover:scale-105"
-          style={{ color: "#fff", background: "rgba(8,3,16,0.55)", border: "2px solid #ff3e9a", boxShadow: "0 0 16px #ff3e9a77", fontFamily: "var(--font-mono)", fontSize: 18, letterSpacing: "0.1em" }}>
-          <XIcon size={20} /><span>FOLLOW ON X</span>
-        </a>
-
-        {/* Secondary menu — like a real game */}
-        <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-          <MenuChip label="🏆 LEADERBOARD" onClick={() => setModal("leaderboard")} />
-          <MenuChip label="⚙ SETTINGS" onClick={() => setModal("settings")} />
-          <MenuChip label="❔ HOW TO PLAY" onClick={() => setModal("howto")} />
+        {/* CA + X + secondary — aligned within one column */}
+        <div className="mt-5 w-full max-w-sm flex flex-col items-stretch gap-2.5">
+          <CADisplay />
+          <a href={X_URL} target="_blank" rel="noopener noreferrer" aria-label="Follow on X"
+            className="flex items-center justify-center gap-3 py-2.5 transition-all hover:brightness-110"
+            style={{ color: "#fff", background: "rgba(8,3,16,0.55)", border: "2px solid #ff3e9a", boxShadow: "0 0 16px #ff3e9a55", fontFamily: "var(--font-mono)", fontSize: 17, letterSpacing: "0.1em" }}>
+            <XIcon size={18} /><span>FOLLOW ON X</span>
+          </a>
+          <div className="grid grid-cols-3 gap-2.5">
+            <MenuChip label="🏆" sub="RANKS" onClick={() => setModal("leaderboard")} />
+            <MenuChip label="⚙" sub="SETTINGS" onClick={() => setModal("settings")} />
+            <MenuChip label="❔" sub="HOW TO" onClick={() => setModal("howto")} />
+          </div>
         </div>
       </div>
 
       {/* Footer */}
-      <div className="absolute bottom-4 left-0 right-0 z-20 text-center text-[12px] tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "rgba(255,255,255,0.35)" }}>
+      <div className="absolute bottom-3 left-0 right-0 z-20 text-center text-[11px] tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "rgba(255,255,255,0.3)" }}>
         {GAME_CONFIG.subtitle} · {GAME_CONFIG.network}
       </div>
+
+      {/* Music player (bottom-right) */}
+      <MusicPlayer on={musicOn} track={trackName} onToggle={toggleMusic} onNext={nextTrack} />
 
       {/* Modals */}
       {modal && <Modal onClose={() => setModal(null)} title={modal === "leaderboard" ? "🏆 LEADERBOARD" : modal === "settings" ? "⚙ SETTINGS" : "❔ HOW TO PLAY"}>
@@ -123,12 +142,53 @@ export default function Home() {
   );
 }
 
-function MenuChip({ label, onClick }: { label: string; onClick: () => void }) {
+function MusicPlayer({ on, track, onToggle, onNext }: { on: boolean; track: string; onToggle: () => void; onNext: () => void }) {
+  return (
+    <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2 px-3 py-2"
+      style={{ fontFamily: "var(--font-mono)", background: "rgba(8,3,16,0.62)", border: "2px solid #19e0ff66", boxShadow: "0 0 16px #19e0ff33" }}>
+      <span className={on ? "text-[#19e0ff]" : "text-[#19e0ff]/40"} style={{ fontSize: 16 }}>♪</span>
+      <div className="flex flex-col leading-tight mr-1">
+        <span className="text-[9px] text-white/40">NOW PLAYING</span>
+        <span className="text-[12px]" style={{ color: "#ffb3d9" }}>{on ? track : "PAUSED"}</span>
+      </div>
+      <button onClick={onToggle} aria-label="Play/Pause" className="w-7 h-7 flex items-center justify-center cursor-pointer hover:scale-110 transition-transform" style={{ color: "#ffd23d", border: "2px solid #ffd23d77" }}>
+        {on ? "❚❚" : "▶"}
+      </button>
+      <button onClick={onNext} aria-label="Next" className="w-7 h-7 flex items-center justify-center cursor-pointer hover:scale-110 transition-transform" style={{ color: "#19e0ff", border: "2px solid #19e0ff77" }}>
+        ⏭
+      </button>
+    </div>
+  );
+}
+
+function CADisplay() {
+  const [copied, setCopied] = useState(false);
+  const isReal = CA !== "SOON" && CA !== "";
+  function copy() { if (!isReal) return; navigator.clipboard.writeText(CA); setCopied(true); setTimeout(() => setCopied(false), 1500); }
+  return (
+    <div className="flex items-center justify-center gap-3 px-4 py-2"
+      style={{ fontFamily: "var(--font-mono)", background: "rgba(8,3,16,0.55)", border: "2px solid #ff3e9a55", boxShadow: "0 0 18px #ff3e9a33" }}>
+      <span className="text-base md:text-lg shrink-0" style={{ color: "#19e0ff" }}>CA:</span>
+      <span className="text-base md:text-lg" style={{ color: copied ? "#FFD700" : isReal ? "#7CFC6B" : "#ffd0e8", letterSpacing: "0.05em", wordBreak: "break-all" }}>
+        {copied ? "COPIED!" : CA}
+      </span>
+      {isReal && (
+        <button onClick={copy} aria-label="Copy CA" className="flex items-center justify-center transition-all hover:scale-110 cursor-pointer shrink-0"
+          style={{ width: 28, height: 28, color: copied ? "#FFD700" : "#19e0ff", background: "rgba(25,224,255,0.1)", border: "2px solid #19e0ff", boxShadow: "0 0 10px #19e0ff55" }}>
+          {copied ? <CheckIcon /> : <CopyIcon />}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function MenuChip({ label, sub, onClick }: { label: string; sub: string; onClick: () => void }) {
   return (
     <button onClick={onClick}
-      className="px-4 py-2 text-sm transition-all hover:scale-105 cursor-pointer"
-      style={{ fontFamily: "var(--font-display)", color: "#bff6ff", background: "rgba(8,3,16,0.5)", border: "2px solid #19e0ff66", boxShadow: "0 0 12px #19e0ff33" }}>
-      {label}
+      className="flex flex-col items-center justify-center py-2 transition-all hover:scale-105 hover:brightness-125 cursor-pointer"
+      style={{ fontFamily: "var(--font-display)", color: "#bff6ff", background: "rgba(8,3,16,0.5)", border: "2px solid #19e0ff66", boxShadow: "0 0 12px #19e0ff22" }}>
+      <span style={{ fontSize: 16 }}>{label}</span>
+      <span className="text-[9px] mt-0.5 tracking-wider">{sub}</span>
     </button>
   );
 }
@@ -158,8 +218,7 @@ function Leaderboard() {
       { name: "Lance", score: 98700 }, { name: "Ryder", score: 76500 }, { name: "Ken_R", score: 54300 },
       { name: "Maria", score: 41200 }, { name: "Cesar", score: 28900 },
     ];
-    const all = [...fake, { name: "YOU", score: mine, you: true }].sort((a, b) => b.score - a.score).slice(0, 9);
-    setRows(all);
+    setRows([...fake, { name: "YOU", score: mine, you: true }].sort((a, b) => b.score - a.score).slice(0, 9));
   }, []);
   return (
     <div className="flex flex-col gap-1.5" style={{ fontFamily: "var(--font-mono)" }}>
@@ -184,9 +243,8 @@ function Settings() {
   return (
     <div className="flex flex-col gap-4" style={{ fontFamily: "var(--font-mono)" }}>
       <div className="flex items-center justify-between text-lg">
-        <span style={{ color: "#cfe8ff" }}>SOUND</span>
-        <button onClick={toggle} className="px-4 py-1.5 cursor-pointer"
-          style={{ color: muted ? "#ff6b7e" : "#7CFC6B", border: `2px solid ${muted ? "#ff6b7e" : "#7CFC6B"}` }}>
+        <span style={{ color: "#cfe8ff" }}>SFX</span>
+        <button onClick={toggle} className="px-4 py-1.5 cursor-pointer" style={{ color: muted ? "#ff6b7e" : "#7CFC6B", border: `2px solid ${muted ? "#ff6b7e" : "#7CFC6B"}` }}>
           {muted ? "OFF" : "ON"}
         </button>
       </div>
@@ -196,16 +254,13 @@ function Settings() {
           {done ? "DONE ✓" : "RESET"}
         </button>
       </div>
-      <div className="text-[11px] mt-1" style={{ color: "#ffb3d9" }}>sound & save are stored on this device.</div>
+      <div className="text-[11px] mt-1" style={{ color: "#ffb3d9" }}>music has its own player (bottom-right). settings stored on this device.</div>
     </div>
   );
 }
 
 function HowTo() {
-  const rows = [
-    ["WASD", "move / drive"], ["MOUSE", "aim"], ["CLICK", "shoot / punch"],
-    ["F", "enter / exit car"], ["E", "start a job"], ["SPACE", "handbrake"],
-  ];
+  const rows = [["WASD", "move / drive"], ["MOUSE", "aim"], ["CLICK", "shoot / punch"], ["F", "enter / exit car"], ["E", "start a job"], ["SPACE", "handbrake"]];
   return (
     <div className="flex flex-col gap-2" style={{ fontFamily: "var(--font-mono)" }}>
       {rows.map(([k, v], i) => (
@@ -215,55 +270,18 @@ function HowTo() {
         </div>
       ))}
       <div className="mt-2 text-[12px] leading-relaxed" style={{ color: "#ffb3d9" }}>
-        Grab the colorful pickups, jack cars, run jobs (gold $ markers) and spend {TICKER} at blue shop markers. Don&apos;t get 5 stars.
+        Grab the colorful pickups, jack cars, run jobs (gold $ markers) and spend {TICKER} at blue shop markers. Don&apos;t hit 5 stars.
       </div>
     </div>
   );
 }
 
-function CADisplay() {
-  const [copied, setCopied] = useState(false);
-  const isReal = CA !== "SOON" && CA !== "";
-  function copy() { if (!isReal) return; navigator.clipboard.writeText(CA); setCopied(true); setTimeout(() => setCopied(false), 1500); }
-  return (
-    <div className="mt-6 flex items-center gap-3 px-5 py-2"
-      style={{ fontFamily: "var(--font-mono)", background: "rgba(8,3,16,0.55)", border: "2px solid #ff3e9a55", boxShadow: "0 0 18px #ff3e9a33" }}>
-      <span className="text-base md:text-lg" style={{ color: "#19e0ff" }}>CA:</span>
-      <span
-        className="text-base md:text-lg"
-        style={{ color: copied ? "#FFD700" : isReal ? "#7CFC6B" : "#ffd0e8", letterSpacing: "0.05em", wordBreak: "break-all" }}>
-        {copied ? "COPIED!" : CA}
-      </span>
-      {isReal && (
-        <button onClick={copy} aria-label="Copy CA"
-          className="flex items-center justify-center transition-all hover:scale-110 cursor-pointer shrink-0"
-          style={{ width: 30, height: 30, color: copied ? "#FFD700" : "#19e0ff", background: "rgba(25,224,255,0.1)", border: "2px solid #19e0ff", boxShadow: "0 0 10px #19e0ff55" }}>
-          {copied ? <CheckIcon /> : <CopyIcon />}
-        </button>
-      )}
-    </div>
-  );
-}
-
 function CopyIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="9" y="9" width="11" height="11" rx="1.5" /><path d="M5 15V5a1.5 1.5 0 0 1 1.5-1.5H15" />
-    </svg>
-  );
+  return (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="1.5" /><path d="M5 15V5a1.5 1.5 0 0 1 1.5-1.5H15" /></svg>);
 }
 function CheckIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 13l4 4L19 7" />
-    </svg>
-  );
+  return (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>);
 }
-
 function XIcon({ size = 12 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-    </svg>
-  );
+  return (<svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>);
 }
