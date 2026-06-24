@@ -17,25 +17,30 @@ export default function Home() {
 
   const engineRef = useRef<MusicEngine | null>(null);
   const [musicOn, setMusicOn] = useState(false);
-  const [trackName, setTrackName] = useState("NEON DRIVE");
+  const [trackName, setTrackName] = useState("ONLY GIRL IN THE WORLD");
+  const [intro, setIntro] = useState(true);
+  const [introLeaving, setIntroLeaving] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => setBlink((b) => !b), 650);
     return () => clearInterval(t);
   }, []);
 
-  // music engine + autostart on first interaction
+  // music engine (started by the intro ENTER button — that click is the audio gesture)
   useEffect(() => {
     const e = new MusicEngine();
     engineRef.current = e;
-    const off = (() => { try { return localStorage.getItem("pixelgta_music_off") === "1"; } catch { return false; } })();
-    const startOnce = () => {
-      if (!off && !e.playing) { e.play(); setMusicOn(true); setTrackName(e.trackName); }
-      window.removeEventListener("pointerdown", startOnce);
-    };
-    window.addEventListener("pointerdown", startOnce);
-    return () => { window.removeEventListener("pointerdown", startOnce); e.dispose(); };
+    setTrackName(e.trackName);
+    return () => { e.dispose(); };
   }, []);
+
+  function enterSite() {
+    const off = (() => { try { return localStorage.getItem("pixelgta_music_off") === "1"; } catch { return false; } })();
+    const e = engineRef.current;
+    if (e && !off) { e.play(); setMusicOn(true); setTrackName(e.trackName); }
+    setIntroLeaving(true);
+    setTimeout(() => setIntro(false), 450);
+  }
 
   function toggleMusic() {
     const e = engineRef.current; if (!e) return;
@@ -69,6 +74,26 @@ export default function Home() {
       <div className="absolute inset-0 z-[1]" style={{ background: "radial-gradient(58% 72% at 50% 50%, rgba(8,3,16,0.88) 0%, rgba(10,4,20,0.6) 45%, rgba(10,4,20,0.18) 75%, transparent 100%)" }} />
       <div className="absolute inset-0 z-[1]" style={{ background: "linear-gradient(0deg, rgba(8,3,16,0.9) 0%, transparent 32%)" }} />
       <div className="absolute inset-0 z-[2] pointer-events-none" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.14) 2px, rgba(0,0,0,0.14) 3px)" }} />
+
+      {/* Animated intro / welcome — ENTER starts music then reveals the menu */}
+      {intro && (
+        <div className="absolute inset-0 z-[60] flex flex-col items-center justify-center text-center px-6"
+          style={{ opacity: introLeaving ? 0 : 1, transition: "opacity 0.45s ease" }}>
+          <div className="absolute inset-0" style={{ background: "radial-gradient(60% 70% at 50% 50%, rgba(8,3,16,0.55), rgba(6,3,14,0.93))" }} />
+          <div className="relative intro-in flex flex-col items-center">
+            <div className="text-2xl md:text-3xl tracking-[0.3em] mb-1 intro-word" style={{ color: "#19e0ff", textShadow: "0 0 16px #19e0ff", animationDelay: "0.1s" }}>PIXEL</div>
+            <div className="text-7xl md:text-9xl font-black title-glow leading-none"
+              style={{ backgroundImage: "linear-gradient(180deg,#fff3b0,#ff8a3d,#ff2e88,#a32bd6)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent" }}>GTA</div>
+            <div className="mt-5 text-base md:text-2xl tracking-[0.2em] intro-word" style={{ color: "#ffb3d9", textShadow: "0 0 12px #ff3e9a88", animationDelay: "0.35s" }}>ДОБРО ПОЖАЛОВАТЬ В VICE PIXEL CITY</div>
+            <div className="mt-2 text-sm md:text-base intro-word" style={{ fontFamily: "var(--font-mono)", color: "#cfe8ff", animationDelay: "0.55s" }}>окунись в мир неона, скорости и больших денег</div>
+            <button onClick={enterSite}
+              className="btn-neon mt-10 px-16 py-5 text-2xl font-black text-white cursor-pointer intro-word"
+              style={{ background: "linear-gradient(180deg,#ff5fb0,#ff1e7a)", border: "3px solid #ffd0e8", animationDelay: "0.75s", ["--g" as string]: "#ff2e88aa", ["--s" as string]: "#5a0a2e" }}>
+              <span className="relative z-10">ВОЙТИ</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Top bar: ticker */}
       <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-start px-6 py-5">

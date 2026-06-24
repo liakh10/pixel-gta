@@ -60,6 +60,11 @@ body {
 .title-glow { animation: titleGlow 3s ease-in-out infinite; }
 .bob { animation: bobUp 3.2s ease-in-out infinite; }
 
+@keyframes introIn { 0% { opacity: 0; transform: translateY(14px) scale(1.05); } 100% { opacity: 1; transform: none; } }
+.intro-in { animation: introIn 0.9s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes introWord { 0% { opacity: 0; transform: translateY(8px); } 100% { opacity: 1; transform: none; } }
+.intro-word { animation: introWord 0.7s ease-out both; }
+
 .wallet-adapter-modal-wrapper { font-family: 'Press Start 2P', monospace !important; }
 
 /* simple HUD scrollbar hide */
