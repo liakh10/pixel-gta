@@ -111,16 +111,37 @@ function CADisplay() {
   const isReal = CA !== "SOON" && CA !== "";
   function copy() { if (!isReal) return; navigator.clipboard.writeText(CA); setCopied(true); setTimeout(() => setCopied(false), 1500); }
   return (
-    <div className="mt-6 flex items-center gap-2 px-5 py-2"
+    <div className="mt-6 flex items-center gap-3 px-5 py-2"
       style={{ fontFamily: "var(--font-mono)", background: "rgba(8,3,16,0.55)", border: "2px solid #ff3e9a55", boxShadow: "0 0 18px #ff3e9a33" }}>
       <span className="text-base md:text-lg" style={{ color: "#19e0ff" }}>CA:</span>
-      <span onClick={copy}
-        className={isReal ? "text-base md:text-lg cursor-pointer transition-opacity hover:opacity-70" : "text-base md:text-lg"}
-        style={{ color: copied ? "#FFD700" : isReal ? "#7CFC6B" : "#ffd0e8", letterSpacing: "0.05em", wordBreak: "break-all" }}
-        title={isReal ? "Click to copy" : undefined}>
+      <span
+        className="text-base md:text-lg"
+        style={{ color: copied ? "#FFD700" : isReal ? "#7CFC6B" : "#ffd0e8", letterSpacing: "0.05em", wordBreak: "break-all" }}>
         {copied ? "COPIED!" : CA}
       </span>
+      {isReal && (
+        <button onClick={copy} aria-label="Copy CA"
+          className="flex items-center justify-center transition-all hover:scale-110 cursor-pointer shrink-0"
+          style={{ width: 30, height: 30, color: copied ? "#FFD700" : "#19e0ff", background: "rgba(25,224,255,0.1)", border: "2px solid #19e0ff", boxShadow: "0 0 10px #19e0ff55" }}>
+          {copied ? <CheckIcon /> : <CopyIcon />}
+        </button>
+      )}
     </div>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="11" height="11" rx="1.5" /><path d="M5 15V5a1.5 1.5 0 0 1 1.5-1.5H15" />
+    </svg>
+  );
+}
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 13l4 4L19 7" />
+    </svg>
   );
 }
 
